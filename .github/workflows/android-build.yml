@@ -26,15 +26,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verify Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --version
       - name: Install Android SDK platform 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Verify Kotlin/Android compilation
         run: gradle :app:assembleDebug --no-daemon --stacktrace
-      - name: Android lint report
-        if: success()
-        run: gradle :app:lintDebug --no-daemon --stacktrace
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -43,6 +44,9 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Android lint report
+        if: success()
+        run: gradle :app:lintDebug --no-daemon --stacktrace
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
@@ -58,8 +62,10 @@ jobs:
     needs: android-build
     timeout-minutes: 30
     steps:
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verify Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --version
       - name: Download compiled debug APK
         uses: actions/download-artifact@v4
         with:
