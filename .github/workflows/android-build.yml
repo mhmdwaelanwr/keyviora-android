@@ -26,10 +26,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Expose Android SDK command-line tools
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
       - name: Install Android SDK platform 35
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Verify Kotlin/Android compilation
         run: gradle :app:assembleDebug --no-daemon --stacktrace
       - name: Android lint report
@@ -58,13 +66,19 @@ jobs:
     needs: android-build
     timeout-minutes: 30
     steps:
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
       - name: Download compiled debug APK
         uses: actions/download-artifact@v4
         with:
           name: KEYVIORA-debug-APK
           path: artifacts
+      - name: Expose Android SDK command-line tools
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
       - name: Boot Android emulator and launch KEYVIORA
         uses: reactivecircus/android-emulator-runner@v2
         with:
