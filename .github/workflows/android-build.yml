@@ -26,8 +26,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
       - name: Install Android SDK platform 35
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Verify Kotlin/Android compilation
@@ -58,8 +56,6 @@ jobs:
     needs: android-build
     timeout-minutes: 30
     steps:
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
       - name: Download compiled debug APK
         uses: actions/download-artifact@v4
         with:
