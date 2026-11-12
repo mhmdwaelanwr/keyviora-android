@@ -1,0 +1,19 @@
+# Gradle and Android Studio
+.gradle/
+**/build/
+.idea/
+*.iml
+local.properties
+.externalNativeBuild/
+.cxx/
+# Secrets and signing material
+*.jks
+*.keystore
+*.pem
+*.key
+.env
+.env.*
+# Generated outputs
+*.apk
+*.aab
+.DS_Store

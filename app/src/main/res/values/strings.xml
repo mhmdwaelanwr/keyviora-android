@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KEYVIORA</string>
+    <string name="service_name">KEYVIORA Controls</string>
+    <string name="accessibility_description">Floating accessibility controls for people with broken physical power or volume keys. Performs only explicitly tapped actions, does not read app contents or collect personal data.</string>
+</resources>
