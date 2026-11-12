@@ -99,7 +99,7 @@ class MainActivity : Activity() {
         text(label, 14f, if (primary) TouchStyle.WHITE else TouchStyle.MINT, true).apply {
             gravity = Gravity.CENTER
             background = TouchStyle.bg(this@MainActivity, if (primary) color() else 0xFF17443C.toInt(), 16)
-            minHeight = dp(46)
+            minimumHeight = dp(46)
             isClickable = true
             isFocusable = true
             setOnClickListener { handler() }
@@ -114,7 +114,7 @@ class MainActivity : Activity() {
     private fun render() {
         val shell = column().apply { setBackgroundColor(TouchStyle.BG) }
         val scroller = ScrollView(this).apply {
-            fillViewport = false
+            isFillViewport = false
             isVerticalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setBackgroundColor(TouchStyle.BG)
@@ -346,7 +346,7 @@ class MainActivity : Activity() {
             val currentAction = prefs.getString(key, fallback) ?: fallback
             val label = TouchPrefs.actionKeys.indexOf(currentAction).takeIf { it >= 0 }?.let { TouchPrefs.actionLabels[it] } ?: currentAction
             val r = row().apply {
-                minHeight = dp(86)
+                minimumHeight = dp(86)
                 isClickable = true
                 setOnClickListener { selectAction(key, fallback) }
             }
@@ -424,7 +424,7 @@ class MainActivity : Activity() {
         )
         steps.forEachIndexed { index, entry ->
             val item = row().apply {
-                minHeight = dp(68)
+                minimumHeight = dp(68)
                 setOnClickListener {
                     when (index) {
                         0 -> openAccessibility()
