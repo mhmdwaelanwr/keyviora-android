@@ -13,14 +13,15 @@ object TouchPrefs {
     const val SINGLE = "single_action"
     const val DOUBLE = "double_action"
     const val LONG = "long_action"
+    const val SNAP_TO_EDGE = "snap_to_edge"
 
     val actionKeys = arrayOf(
         "MENU", "LOCK", "POWER", "SCREENSHOT", "VOLUME_UP", "VOLUME_DOWN",
-        "HOME", "BACK", "RECENTS", "NOTIFICATIONS", "QUICK_SETTINGS", "FLASHLIGHT", "HIDE"
+        "HOME", "BACK", "RECENTS", "NOTIFICATIONS", "QUICK_SETTINGS", "FLASHLIGHT", "HIDE", "NONE"
     )
     val actionLabels = arrayOf(
         "فتح القائمة", "قفل الشاشة", "قائمة الباور", "لقطة شاشة", "رفع الصوت", "خفض الصوت",
-        "الرئيسية", "رجوع", "التطبيقات الأخيرة", "الإشعارات", "الإعدادات السريعة", "الكشاف", "إخفاء الزر"
+        "الرئيسية", "رجوع", "التطبيقات الأخيرة", "الإشعارات", "الإعدادات السريعة", "الكشاف", "إخفاء الزر", "بدون إجراء"
     )
 
     fun prefs(context: Context) = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
