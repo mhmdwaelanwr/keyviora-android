@@ -19,6 +19,21 @@ class TouchActionCatalogTest {
         assertEquals("NONE", TouchActionCatalog.resolve("NONE", "LOCK").key)
     }
 
+    @Test fun sixQuickControlDefaultsAreValid() {
+        assertEquals(6, TouchPrefs.quickKeys.size)
+        assertEquals(6, TouchPrefs.quickDefaults.size)
+        assertEquals(TouchPrefs.quickKeys.size, TouchPrefs.quickKeys.distinct().size)
+        assertTrue(TouchPrefs.quickDefaults.all {
+            TouchActionCatalog.resolve(it, "MENU").key == it
+        })
+    }
+
+    @Test fun invalidQuickControlActionFallsBackToSlotDefault() {
+        TouchPrefs.quickDefaults.forEach { fallback ->
+            assertEquals(fallback, TouchActionCatalog.resolve("REMOVED_ACTION", fallback).key)
+        }
+    }
+
     @Test fun pinnedDefaultActionsRemainAvailable() {
         assertEquals(3, TouchPrefs.favoriteKeys.size)
         assertEquals(TouchPrefs.favoriteKeys.size, TouchPrefs.favoriteDefaults.size)
