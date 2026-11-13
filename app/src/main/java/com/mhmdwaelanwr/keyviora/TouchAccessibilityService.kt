@@ -18,6 +18,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -166,6 +167,7 @@ class TouchAccessibilityService : AccessibilityService() {
         var touchStartRawY = 0f
         var bubbleStartX = layout.x
         var bubbleStartY = layout.y
+        var wasDragged = false
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
@@ -180,6 +182,7 @@ class TouchAccessibilityService : AccessibilityService() {
                 runConfigured(TouchPrefs.LONG, "LOCK")
             }
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+                wasDragged = true
                 val p = bubbleParams ?: return false
                 // Absolute displacement avoids losing sub-pixel drags to per-frame rounding.
                 p.x = (bubbleStartX + e2.rawX - touchStartRawX).roundToInt()
@@ -195,10 +198,20 @@ class TouchAccessibilityService : AccessibilityService() {
                 bubbleStartY = bubbleParams?.y ?: 0
                 touchStartRawX = event.rawX
                 touchStartRawY = event.rawY
+                wasDragged = false
             }
             detector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                bubbleParams?.let(::persistBubblePosition)
+                bubbleParams?.let { params ->
+                    if (wasDragged && prefs().getBoolean(TouchPrefs.SNAP_TO_EDGE, true)) {
+                        params.x = BubbleBounds.snapToEdge(
+                            params.x, resources.displayMetrics.widthPixels, params.width, dp(10)
+                        )
+                        try { windowManager.updateViewLayout(button, params) } catch (_: Exception) { }
+                    }
+                    persistBubblePosition(params)
+                }
+                wasDragged = false
             }
             true
         }
@@ -252,7 +265,10 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     private fun runConfigured(key: String, defaultAction: String) {
-        execute(prefs().getString(key, defaultAction) ?: defaultAction)
+        val saved = prefs().getString(key, defaultAction)
+        val action = saved?.takeIf { it in TouchPrefs.actionKeys } ?: defaultAction
+        if (action != "NONE") bubbleView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        execute(action)
     }
 
     /** Allow app dashboard cards to execute the same actions as the overlay. */
@@ -262,6 +278,7 @@ class TouchAccessibilityService : AccessibilityService() {
         // Close first so system screenshots do not capture the expanded menu.
         if (action != "MENU") closeMenu()
         when (action) {
+            "NONE" -> Unit
             "MENU" -> if (menuView == null) showMenu() else closeMenu()
             "LOCK" -> global(GLOBAL_ACTION_LOCK_SCREEN)
             "POWER" -> showPowerConfirmation()
