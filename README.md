@@ -6,6 +6,15 @@ KEYVIORA is a lightweight offline Android accessibility utility with a movable f
 
 [Editable Figma design](https://www.figma.com/design/eg7BsPgq2CYyORfeHb3BuG) · Android Studio source · No analytics or internet permission.
 
+## What's new in 0.8.0-beta (one-hand control)
+
+- **Fully configurable quick panel:** personalize all six primary quick controls in **Gestures → Quick control grid**.
+- Change any button to Lock, Back, Home, Torch, Screenshot, Volume, Wi-Fi settings, Power or **No action**; the chosen icons and captions update in the floating panel.
+- The three **pinned More tools** buttons stay independently configurable.
+- **Optional haptic feedback:** turn light touch feedback on or off in Style.
+- **Reset quick-control grid** without losing other custom settings. Restoring all defaults still resets everything.
+- Unit tests verify all six quick defaults and prevent broken shortcuts when a saved action no longer exists.
+
 ## What's new in 0.7.0-beta (professional usability)
 
 - Three **pinned shortcuts** at the top of **More tools**, personalized from **Gestures → Pinned shortcuts**, with one-tap reset to recommended tools.
