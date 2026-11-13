@@ -1,4 +1,4 @@
-# KEYVIORA 0.6.0-beta — UX & quality report
+# KEYVIORA 0.7.0-beta — UX & quality report
 
 ## Previous verified build
 The previous `main` version passed Android debug compile, lint and Android 15 emulator launch:
@@ -44,3 +44,14 @@ The floating control can't wake a switched-off device and can't restart a fully 
 - Edge-snap pure Kotlin unit tests including a screen smaller than the bubble.
 
 **Verification:** The above changes are code changes, not physical-device results. Inspect CI for the exact 0.6.0-beta commit before installing; HONOR/MagicOS background behavior and gesture handling require testing on the target phone.
+
+## 0.7.0-beta: improvements to validate
+
+- Three customizable pinned controls on the More Tools overlay page, with correct metadata shared across UI and service.
+- Dashboard and Setup show the actual overlay state and allow recovery if it failed to appear.
+- Accessibility click route for TalkBack; regular gestures still require on-device testing.
+- Vertical safe-zone clamping prevents the orb sitting over navigation/status bars.
+- A NONE gesture does not dismiss the open panel.
+- New action catalog, safe-insets and pinned-default unit tests.
+
+**At documentation time, these commits are not certified by a completed CI run or a HONOR-device test.** Do not treat an older green run as proof this version works.
