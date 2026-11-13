@@ -1,4 +1,4 @@
-# KEYVIORA 0.5.0-beta — UX & quality report
+# KEYVIORA 0.6.0-beta — UX & quality report
 
 ## Previous verified build
 The previous `main` version passed Android debug compile, lint and Android 15 emulator launch:
@@ -33,3 +33,14 @@ The previous `main` version passed Android debug compile, lint and Android 15 em
 
 **CI isn't a guarantee that a real accessibility overlay works on an OEM device.**
 The floating control can't wake a switched-off device and can't restart a fully powered-off phone.
+
+## 0.6.0-beta extension
+
+- Optional snap-to-edge preference (defaults ON); only applies after an actual drag.
+- Preserve settings scroll position when repainting the Activity.
+- Home volume buttons work without accessibility permissions; global actions still require them.
+- `NONE` gesture setting, with defensive fallback for invalid saved action values.
+- Confirmation before restoring all application defaults; Android permissions are untouched.
+- Edge-snap pure Kotlin unit tests including a screen smaller than the bubble.
+
+**Verification:** The above changes are code changes, not physical-device results. Inspect CI for the exact 0.6.0-beta commit before installing; HONOR/MagicOS background behavior and gesture handling require testing on the target phone.
