@@ -3,6 +3,7 @@ package com.mhmdwaelanwr.keyviora
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.content.res.ColorStateList
@@ -41,6 +42,17 @@ class TouchAccessibilityService : AccessibilityService() {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var menuView: View? = null
     private var flashlightOn = false
+    private var torchCameraId: String? = null
+    private var torchCallbackRegistered = false
+    private val torchCallback = object : CameraManager.TorchCallback() {
+        override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+            if (cameraId == torchCameraId) flashlightOn = enabled
+        }
+
+        override fun onTorchModeUnavailable(cameraId: String) {
+            if (cameraId == torchCameraId) flashlightOn = false
+        }
+    }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun prefs() = TouchPrefs.prefs(this)
@@ -56,6 +68,19 @@ class TouchAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
     override fun onInterrupt() = Unit
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The usable display dimensions can change after rotation and multi-window changes.
+        bubbleParams?.let { params ->
+            clampBubblePosition(params)
+            bubbleView?.let { view ->
+                try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+            }
+            persistBubblePosition(params)
+        }
+        closeMenu()
+    }
+
     override fun onUnbind(intent: Intent?): Boolean {
         cleanup()
         return super.onUnbind(intent)
@@ -67,6 +92,13 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     private fun cleanup() {
+        handler.removeCallbacksAndMessages(null)
+        if (torchCallbackRegistered) {
+            try {
+                (getSystemService(CAMERA_SERVICE) as CameraManager).unregisterTorchCallback(torchCallback)
+            } catch (_: Exception) { }
+            torchCallbackRegistered = false
+        }
         closeMenu()
         bubbleView?.let { view ->
             try { windowManager.removeView(view) } catch (_: Exception) { }
@@ -83,9 +115,19 @@ class TouchAccessibilityService : AccessibilityService() {
             if (borderColor != null) setStroke(dp(2), borderColor)
         }
 
+    private fun clampBubblePosition(params: WindowManager.LayoutParams) {
+        val metrics = resources.displayMetrics
+        params.x = BubbleBounds.clamp(params.x, metrics.widthPixels, params.width)
+        params.y = BubbleBounds.clamp(params.y, metrics.heightPixels, params.height)
+    }
+
+    private fun persistBubblePosition(params: WindowManager.LayoutParams) {
+        prefs().edit().putInt(TouchPrefs.X, params.x).putInt(TouchPrefs.Y, params.y).apply()
+    }
+
     private fun createBubble() {
         if (bubbleView != null) return
-        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60))
+        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88))
         val button = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF1B3355.toInt(), 0xFF345783.toInt())
             elevation = dp(8).toFloat()
@@ -114,8 +156,8 @@ class TouchAccessibilityService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = prefs().getInt(TouchPrefs.X, defaultX).coerceIn(0, (metrics.widthPixels - diameter).coerceAtLeast(0))
-            y = prefs().getInt(TouchPrefs.Y, defaultY).coerceIn(0, (metrics.heightPixels - diameter).coerceAtLeast(0))
+            x = BubbleBounds.clamp(prefs().getInt(TouchPrefs.X, defaultX), metrics.widthPixels, diameter)
+            y = BubbleBounds.clamp(prefs().getInt(TouchPrefs.Y, defaultY), metrics.heightPixels, diameter)
         }
         bubbleParams = layout
         bubbleView = button
@@ -134,8 +176,9 @@ class TouchAccessibilityService : AccessibilityService() {
             }
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
                 val p = bubbleParams ?: return false
-                p.x = (p.x - distanceX).roundToInt().coerceIn(0, (resources.displayMetrics.widthPixels - p.width).coerceAtLeast(0))
-                p.y = (p.y - distanceY).roundToInt().coerceIn(0, (resources.displayMetrics.heightPixels - p.height).coerceAtLeast(0))
+                p.x = (p.x - distanceX).roundToInt()
+                p.y = (p.y - distanceY).roundToInt()
+                clampBubblePosition(p)
                 try { windowManager.updateViewLayout(button, p) } catch (_: Exception) { }
                 return true
             }
@@ -143,9 +186,7 @@ class TouchAccessibilityService : AccessibilityService() {
         button.setOnTouchListener { _, event ->
             detector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                bubbleParams?.let {
-                    prefs().edit().putInt(TouchPrefs.X, it.x).putInt(TouchPrefs.Y, it.y).apply()
-                }
+                bubbleParams?.let(::persistBubblePosition)
             }
             true
         }
@@ -162,16 +203,18 @@ class TouchAccessibilityService : AccessibilityService() {
     fun refreshAppearance() {
         val view = bubbleView ?: return
         val params = bubbleParams ?: return
-        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60))
+        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88))
         params.width = size
         params.height = size
+        clampBubblePosition(params)
+        persistBubblePosition(params)
         val center = (view as? FrameLayout)?.getChildAt(0)
         center?.layoutParams = FrameLayout.LayoutParams(size * 4 / 5, size * 4 / 5, Gravity.CENTER)
         (center as? FrameLayout)?.getChildAt(0)?.let { dot ->
             dot.layoutParams = FrameLayout.LayoutParams(size * 2 / 5, size * 2 / 5, Gravity.CENTER)
             dot.background = TouchStyle.oval(this, prefs().getInt(TouchPrefs.ACCENT, TouchStyle.BLUE))
         }
-        view.alpha = prefs().getInt(TouchPrefs.OPACITY, 85) / 100f
+        view.alpha = prefs().getInt(TouchPrefs.OPACITY, 85).coerceIn(35, 100) / 100f
         try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
     }
 
@@ -268,21 +311,32 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun toggleFlashlight() {
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            toast("افتح التطبيق واسمح بصلاحية الكاميرا لتشغيل الكشاف")
-            openApp()
+            toast("اسمح بصلاحية الكاميرا، ثم اضغط على الكشاف مرة أخرى")
+            openApp(requestCameraPermission = true)
             return
         }
         try {
             val manager = getSystemService(CAMERA_SERVICE) as CameraManager
-            val cameraId = manager.cameraIdList.firstOrNull {
+            // Prefer a rear camera with a torch, not a front/auxiliary camera.
+            val available = manager.cameraIdList.filter {
                 manager.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             }
+            val cameraId = torchCameraId?.takeIf { it in available }
+                ?: available.firstOrNull {
+                    manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) ==
+                        CameraCharacteristics.LENS_FACING_BACK
+                } ?: available.firstOrNull()
             if (cameraId == null) {
                 toast("لم يتم العثور على كشاف متاح")
                 return
             }
+            torchCameraId = cameraId
+            if (!torchCallbackRegistered) {
+                manager.registerTorchCallback(torchCallback, handler)
+                torchCallbackRegistered = true
+            }
             manager.setTorchMode(cameraId, !flashlightOn)
-            flashlightOn = !flashlightOn
+            flashlightOn = !flashlightOn // Callback keeps state synced with external toggles.
         } catch (_: Exception) {
             toast("الكشاف مشغول أو غير متاح")
         }
@@ -293,9 +347,13 @@ class TouchAccessibilityService : AccessibilityService() {
         catch (_: Exception) { toast("تعذر فتح الإعدادات") }
     }
 
-    private fun openApp() {
-        try { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (_: Exception) { toast("تعذر فتح التطبيق") }
+    private fun openApp(requestCameraPermission: Boolean = false) {
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_REQUEST_CAMERA_PERMISSION, requestCameraPermission)
+            startActivity(intent)
+        } catch (_: Exception) { toast("تعذر فتح التطبيق") }
     }
 
     private fun menuText(content: String, size: Float = 14f, color: Int = TouchStyle.WHITE, strong: Boolean = false): TextView =
