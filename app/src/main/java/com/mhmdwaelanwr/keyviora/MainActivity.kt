@@ -21,6 +21,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.roundToInt
@@ -34,6 +35,7 @@ class MainActivity : Activity() {
     private var tab = 0
     private lateinit var page: LinearLayout
     private lateinit var bottomNav: LinearLayout
+    private var currentScroller: ScrollView? = null
     private val prefs get() = TouchPrefs.prefs(this)
     private fun dp(n: Int) = TouchStyle.dp(this, n)
     private val svc get() = TouchAccessibilityService.instance
@@ -119,7 +121,7 @@ class MainActivity : Activity() {
         text(label, 14f, if (primary) accentTextColor() else TouchStyle.MINT, true).apply {
             gravity = Gravity.CENTER
             background = TouchStyle.bg(this@MainActivity, if (primary) color() else 0xFF17443C.toInt(), 16)
-            minimumHeight = dp(46)
+            minimumHeight = dp(48)
             isClickable = true
             isFocusable = true
             setOnClickListener { handler() }
@@ -131,7 +133,8 @@ class MainActivity : Activity() {
             pad(this, 10, 7, 10, 7)
         }
 
-    private fun render() {
+    private fun render(resetScroll: Boolean = false) {
+        val previousScrollY = if (resetScroll) 0 else currentScroller?.scrollY ?: 0
         val shell = column().apply { setBackgroundColor(TouchStyle.BG) }
         val scroller = ScrollView(this).apply {
             isFillViewport = false
@@ -141,6 +144,7 @@ class MainActivity : Activity() {
         }
         page = column().apply { pad(this, 20, 14, 20, 25) }
         scroller.addView(page)
+        currentScroller = scroller
         shell.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
         bottomNav = row().apply {
             setBackgroundColor(TouchStyle.SURFACE)
@@ -155,6 +159,9 @@ class MainActivity : Activity() {
             else -> setup()
         }
         renderNav()
+        scroller.post {
+            if (currentScroller === scroller) scroller.scrollTo(0, previousScrollY)
+        }
     }
 
     private fun renderNav() {
@@ -173,7 +180,7 @@ class MainActivity : Activity() {
                     if (tab != i) {
                         it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                         tab = i
-                        render()
+                        render(resetScroll = true)
                     }
                 }
             }
@@ -184,6 +191,17 @@ class MainActivity : Activity() {
     }
 
     private fun runAction(action: String) {
+        // Media-volume replacement should work before the accessibility service is enabled.
+        if (action == "VOLUME_UP" || action == "VOLUME_DOWN") {
+            try {
+                audio.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    if (action == "VOLUME_UP") AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                    AudioManager.FLAG_SHOW_UI
+                )
+            } catch (_: Exception) { toast("Could not change media volume") }
+            return
+        }
         val service = svc
         if (service == null) {
             AlertDialog.Builder(this)
@@ -356,6 +374,22 @@ class MainActivity : Activity() {
         slider(controls, TouchPrefs.SIZE, 48, 88, 60)
         add(controls, labelRow("Opacity", "How visible the orb is", "${prefs.getInt(TouchPrefs.OPACITY,85)}%"), 12)
         slider(controls, TouchPrefs.OPACITY, 35, 100, 85)
+
+        val snapRow = row().apply { minimumHeight = dp(60) }
+        snapRow.addView(
+            labelRow("Snap to edge", "Keep the button close to the screen edge"),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        val snapSwitch = Switch(this).apply {
+            isChecked = prefs.getBoolean(TouchPrefs.SNAP_TO_EDGE, true)
+            contentDescription = "Snap floating button to the nearest screen edge"
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean(TouchPrefs.SNAP_TO_EDGE, checked).apply()
+                toast(if (checked) "Snap to edge enabled" else "Free bubble placement enabled")
+            }
+        }
+        snapRow.addView(snapSwitch, LinearLayout.LayoutParams(dp(58), dp(52)))
+        add(controls, snapRow, 10)
         add(controls, roundedButton(
             if (prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide floating control" else "Show floating control",
             false
@@ -599,6 +633,20 @@ class MainActivity : Activity() {
         }
         add(page, guide)
         add(page, text("If your HONOR automatically closes the service, review battery optimization for KEYVIORA in Android App info.", 12f, TouchStyle.MUTED), 16)
+        add(page, roundedButton("Restore all default settings", false) {
+            AlertDialog.Builder(this)
+                .setTitle("Reset KEYVIORA settings?")
+                .setMessage("Reset gestures, colors, size, opacity and bubble position. The floating button will be shown again. Accessibility permission is unaffected.")
+                .setPositiveButton("Reset all") { _, _ ->
+                    prefs.edit().clear().apply()
+                    svc?.refreshAppearance()
+                    svc?.resetBubblePosition()
+                    render()
+                    toast("Default settings restored")
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }, 12)
         add(page, roundedButton("Open battery / app settings", false) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }, 18)
