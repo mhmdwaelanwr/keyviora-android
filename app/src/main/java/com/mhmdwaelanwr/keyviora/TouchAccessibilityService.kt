@@ -120,7 +120,9 @@ class TouchAccessibilityService : AccessibilityService() {
     private fun clampBubblePosition(params: WindowManager.LayoutParams) {
         val metrics = resources.displayMetrics
         params.x = BubbleBounds.clamp(params.x, metrics.widthPixels, params.width)
-        params.y = BubbleBounds.clamp(params.y, metrics.heightPixels, params.height)
+        params.y = BubbleBounds.clampWithinInsets(
+            params.y, metrics.heightPixels, params.height, dp(28), dp(44)
+        )
     }
 
     private fun persistBubblePosition(params: WindowManager.LayoutParams) {
@@ -164,7 +166,10 @@ class TouchAccessibilityService : AccessibilityService() {
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = BubbleBounds.clamp(prefs().getInt(TouchPrefs.X, defaultX), metrics.widthPixels, diameter)
-            y = BubbleBounds.clamp(prefs().getInt(TouchPrefs.Y, defaultY), metrics.heightPixels, diameter)
+            y = BubbleBounds.clampWithinInsets(
+                prefs().getInt(TouchPrefs.Y, defaultY),
+                metrics.heightPixels, diameter, dp(28), dp(44)
+            )
         }
         bubbleParams = layout
         bubbleView = button
