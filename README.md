@@ -6,6 +6,15 @@ KEYVIORA is a lightweight offline Android accessibility utility with a movable f
 
 [Editable Figma design](https://www.figma.com/design/eg7BsPgq2CYyORfeHb3BuG) · Android Studio source · No analytics or internet permission.
 
+## What's new in 0.6.0-beta (comfort and recovery)
+
+- **Snap to edge:** a setting in Style magnetically moves the floating button to the nearest screen edge after dragging. Turn it off for free placement.
+- **Scroll position stays put** when you change Style or gesture options.
+- **Volume works before setup:** the volume buttons on Home use Android's media audio controls even before Accessibility is enabled.
+- **No action** is available as a gesture choice when you don't want an accidental shortcut.
+- **Restore all defaults:** confirmed reset of colors, gestures, button size, opacity and position; it restores a hidden floating button without revoking Android permissions.
+- JUnit tests cover regular/tiny screens and oversized magnetic edge margins.
+
 ## What's new in 0.5.0-beta (UX)
 - Guided first-run Accessibility setup with a clear activation button.
 - Accurate visible/hidden button state on Home and a recovery action.
