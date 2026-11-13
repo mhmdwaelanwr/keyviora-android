@@ -218,6 +218,20 @@ class TouchAccessibilityService : AccessibilityService() {
         try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
     }
 
+    /** Recovery action from Settings when the bubble was dragged to an inconvenient edge. */
+    fun resetBubblePosition() {
+        val params = bubbleParams ?: return
+        val metrics = resources.displayMetrics
+        params.x = metrics.widthPixels - params.width - dp(12)
+        params.y = metrics.heightPixels / 4
+        clampBubblePosition(params)
+        persistBubblePosition(params)
+        bubbleView?.let { view ->
+            try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+        }
+        setBubbleVisible(true)
+    }
+
     fun setBubbleVisible(visible: Boolean) {
         prefs().edit().putBoolean(TouchPrefs.BUBBLE_VISIBLE, visible).apply()
         if (visible && bubbleView == null) createBubble()
