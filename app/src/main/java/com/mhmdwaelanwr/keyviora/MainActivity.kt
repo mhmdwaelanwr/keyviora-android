@@ -335,7 +335,7 @@ class MainActivity : Activity() {
             background = TouchStyle.bg(this@MainActivity, TouchStyle.SURFACE, 25, TouchStyle.BORDER)
         }
         add(preview, text("LIVE PREVIEW", 11f, TouchStyle.MUTED, true).apply { gravity = Gravity.CENTER })
-        val previewSize = prefs.getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88)
+        val previewSize = prefs.getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88)
         val outer = FrameLayout(this).apply {
             background = TouchStyle.oval(this@MainActivity, 0xFF203B66.toInt())
             alpha = prefs.getInt(TouchPrefs.OPACITY, 85).coerceIn(35, 100) / 100f
@@ -351,7 +351,7 @@ class MainActivity : Activity() {
 
         val controls = card()
         add(controls, text("Floating button", 18f, TouchStyle.WHITE, true))
-        add(controls, labelRow("Size", "Button diameter", "${prefs.getInt(TouchPrefs.SIZE,60)} dp"), 17)
+        add(controls, labelRow("Size", "Button diameter", "${prefs.getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88)} dp"), 17)
         slider(controls, TouchPrefs.SIZE, 48, 88, 60)
         add(controls, labelRow("Opacity", "How visible the orb is", "${prefs.getInt(TouchPrefs.OPACITY,85)}%"), 12)
         slider(controls, TouchPrefs.OPACITY, 35, 100, 85)
