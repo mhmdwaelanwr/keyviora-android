@@ -289,10 +289,11 @@ class TouchAccessibilityService : AccessibilityService() {
     fun performNamedAction(action: String) { execute(action) }
 
     private fun execute(action: String) {
+        // An explicitly disabled gesture must not close an already-open panel.
+        if (action == "NONE") return
         // Close first so system screenshots do not capture the expanded menu.
         if (action != "MENU") closeMenu()
         when (action) {
-            "NONE" -> Unit
             "MENU" -> if (menuView == null) showMenu() else closeMenu()
             "LOCK" -> global(GLOBAL_ACTION_LOCK_SCREEN)
             "POWER" -> showPowerConfirmation()
