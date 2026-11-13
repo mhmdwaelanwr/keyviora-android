@@ -161,6 +161,10 @@ class TouchAccessibilityService : AccessibilityService() {
         }
         bubbleParams = layout
         bubbleView = button
+        var touchStartRawX = 0f
+        var touchStartRawY = 0f
+        var bubbleStartX = layout.x
+        var bubbleStartY = layout.y
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
@@ -176,14 +180,21 @@ class TouchAccessibilityService : AccessibilityService() {
             }
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
                 val p = bubbleParams ?: return false
-                p.x = (p.x - distanceX).roundToInt()
-                p.y = (p.y - distanceY).roundToInt()
+                // Absolute displacement avoids losing sub-pixel drags to per-frame rounding.
+                p.x = (bubbleStartX + e2.rawX - touchStartRawX).roundToInt()
+                p.y = (bubbleStartY + e2.rawY - touchStartRawY).roundToInt()
                 clampBubblePosition(p)
                 try { windowManager.updateViewLayout(button, p) } catch (_: Exception) { }
                 return true
             }
         })
         button.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                bubbleStartX = bubbleParams?.x ?: 0
+                bubbleStartY = bubbleParams?.y ?: 0
+                touchStartRawX = event.rawX
+                touchStartRawY = event.rawY
+            }
             detector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP) {
                 bubbleParams?.let(::persistBubblePosition)
