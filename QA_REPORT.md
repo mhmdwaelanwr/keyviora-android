@@ -1,4 +1,4 @@
-# KEYVIORA 0.7.0-beta — UX & quality report
+# KEYVIORA 0.8.0-beta — UX & quality report
 
 ## Previous verified build
 The previous `main` version passed Android debug compile, lint and Android 15 emulator launch:
@@ -55,3 +55,12 @@ The floating control can't wake a switched-off device and can't restart a fully 
 - New action catalog, safe-insets and pinned-default unit tests.
 
 **At documentation time, these commits are not certified by a completed CI run or a HONOR-device test.** Do not treat an older green run as proof this version works.
+
+## 0.8.0-beta: verification required
+- Quick Controls now renders six independently customizable actions.
+- Settings screen exposes the six slots with readable labels and a per-section reset.
+- Haptic feedback is optional and obeys system haptic preferences.
+- Unit tests verify six configured defaults and fallback for obsolete action keys.
+- Test TalkBack reading order and physically tapping the six tiles on a real HONOR phone.
+
+A clean build on a previous commit is **not evidence of a clean 0.8.0-beta build**.
