@@ -6,6 +6,16 @@ KEYVIORA is a lightweight offline Android accessibility utility with a movable f
 
 [Editable Figma design](https://www.figma.com/design/eg7BsPgq2CYyORfeHb3BuG) · Android Studio source · No analytics or internet permission.
 
+## What's new in 0.7.0-beta (professional usability)
+
+- Three **pinned shortcuts** at the top of **More tools**, personalized from **Gestures → Pinned shortcuts**, with one-tap reset to recommended tools.
+- All configurable Android actions (including app launch and system settings) use one shared, tested action catalog.
+- **Truthful service status:** Home/Setup now check whether the overlay actually exists, rather than relying only on a stored visibility flag. A failed bubble can be retried from Home.
+- **TalkBack accessibility:** the bubble offers an actionable click for screen-reader users in addition to raw single/double/long touch gestures.
+- Keep the bubble clear of status/navigation-bar comfort margins, including after rotating or resizing.
+- Extra pure Kotlin regression tests for the action catalog and on-screen safe bounds.
+- A disabled gesture means **no action**: it does not unexpectedly close an existing quick-control menu.
+
 ## What's new in 0.6.0-beta (comfort and recovery)
 
 - **Snap to edge:** a setting in Style magnetically moves the floating button to the nearest screen edge after dragging. Turn it off for free placement.
