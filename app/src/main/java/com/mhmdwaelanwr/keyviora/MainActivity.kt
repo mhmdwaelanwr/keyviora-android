@@ -253,6 +253,12 @@ class MainActivity : Activity() {
         val bar = volumeSeekBar { volumeLabel.text = "${volumePercent()}%" }
         add(card, bar, 8, -1, dp(32))
         add(page, card, 17)
+        if (active && !prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) {
+            add(page, roundedButton("Restore floating button") {
+                svc?.setBubbleVisible(true)
+                render()
+            }, 16)
+        }
         add(page, text("Tap the floating button to open your quick controls.", 12f, TouchStyle.MUTED), 16)
     }
 
@@ -289,14 +295,18 @@ class MainActivity : Activity() {
             background = TouchStyle.bg(this@MainActivity, TouchStyle.SURFACE, 25, TouchStyle.BORDER)
         }
         add(preview, text("LIVE PREVIEW", 11f, TouchStyle.MUTED, true).apply { gravity = Gravity.CENTER })
-        val outer = FrameLayout(this).apply { background = TouchStyle.oval(this@MainActivity, 0xFF203B66.toInt()) }
+        val previewSize = prefs.getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88)
+        val outer = FrameLayout(this).apply {
+            background = TouchStyle.oval(this@MainActivity, 0xFF203B66.toInt())
+            alpha = prefs.getInt(TouchPrefs.OPACITY, 85).coerceIn(35, 100) / 100f
+        }
         val mid = FrameLayout(this).apply { background = TouchStyle.oval(this@MainActivity, 0xFF38639E.toInt()) }
         val inner = View(this).apply { background = TouchStyle.oval(this@MainActivity, color()) }
-        mid.addView(inner, FrameLayout.LayoutParams(dp(37), dp(37), Gravity.CENTER))
-        outer.addView(mid, FrameLayout.LayoutParams(dp(65), dp(65), Gravity.CENTER))
-        add(preview, outer, 14, dp(94), dp(94))
-        add(preview, text("Drag me anywhere", 12f, TouchStyle.MUTED).apply { gravity = Gravity.CENTER }, 9)
-        add(preview, chip("BLUE NIGHT", 0xFF253A5C.toInt(), TouchStyle.WHITE), 11, -2)
+        mid.addView(inner, FrameLayout.LayoutParams(dp(previewSize * 2 / 5), dp(previewSize * 2 / 5), Gravity.CENTER))
+        outer.addView(mid, FrameLayout.LayoutParams(dp(previewSize * 4 / 5), dp(previewSize * 4 / 5), Gravity.CENTER))
+        add(preview, outer, 14, dp(previewSize), dp(previewSize))
+        add(preview, text("Preview of your floating control", 12f, TouchStyle.MUTED).apply { gravity = Gravity.CENTER }, 9)
+        add(preview, chip("CUSTOM ACCENT", 0xFF253A5C.toInt(), TouchStyle.WHITE), 11, -2)
         add(page, preview, 25, -1, dp(221))
 
         val controls = card()
@@ -309,12 +319,20 @@ class MainActivity : Activity() {
             if (prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide floating control" else "Show floating control",
             false
         ) { toggleBubble() }, 14)
+        add(controls, roundedButton("Reset bubble position", false) {
+            if (svc == null) openAccessibility()
+            else {
+                svc?.resetBubblePosition()
+                toast("Floating button moved to the right edge")
+                render()
+            }
+        }, 10)
         add(page, controls, 18)
         section("ACCENT COLORS")
         val colors = row().apply { gravity = Gravity.CENTER }
         TouchStyle.accentColors.forEachIndexed { i, c ->
             val selected = c == color()
-            val v = text(if (selected) "✓" else "", 18f, if (c == TouchStyle.WHITE) TouchStyle.BG else TouchStyle.WHITE, true).apply {
+            val v = text(if (selected) "✓" else "", 18f, TouchStyle.onAccent(c), true).apply {
                 gravity = Gravity.CENTER
                 contentDescription = "Color ${i + 1}"
                 background = TouchStyle.oval(this@MainActivity, c, if (selected) TouchStyle.WHITE else null)
