@@ -235,7 +235,7 @@ class MainActivity : Activity() {
         brand.addView(text("KEYVIORA", 16f, TouchStyle.WHITE, true),
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val active = svc != null
-        val bubbleVisible = active && prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
+        val bubbleVisible = svc?.isBubbleVisible() == true
         add(brand, chip(if (bubbleVisible) "● ACTIVE" else if (active) "● HIDDEN" else "● SET UP", if (bubbleVisible) 0xFF123F3A.toInt() else 0xFF463628.toInt(), if (bubbleVisible) TouchStyle.MINT else TouchStyle.AMBER), 0, -2)
         add(page, brand)
         add(page, text("One touch.", 34f, TouchStyle.WHITE, true), 23)
@@ -258,7 +258,12 @@ class MainActivity : Activity() {
         halo.isClickable = true
         halo.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            if (active) runAction("MENU") else openAccessibility()
+            if (!active) openAccessibility()
+            else if (!bubbleVisible) {
+                svc?.setBubbleVisible(true)
+                if (svc?.isBubbleVisible() != true) toast("Unable to restore the floating button")
+                render()
+            } else runAction("MENU")
         }
         hero.addView(halo, FrameLayout.LayoutParams(dp(90), dp(90), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(15) })
         add(page, hero, 25, -1, dp(145))
@@ -276,10 +281,13 @@ class MainActivity : Activity() {
             ready.addView(text("✓  Controls ready", 13f, TouchStyle.MINT, true),
                 LinearLayout.LayoutParams(0, -2, 1f))
             val action = roundedButton(
-                if (prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide button" else "Show button",
+                if (bubbleVisible) "Hide button" else "Show button",
                 false
             ) {
-                svc?.setBubbleVisible(!prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true))
+                svc?.setBubbleVisible(!bubbleVisible)
+                if (!bubbleVisible && svc?.isBubbleVisible() != true) {
+                    toast("Could not display the floating button. Check Accessibility settings.")
+                }
                 render()
             }
             ready.addView(action, LinearLayout.LayoutParams(dp(120), dp(48)))
@@ -328,9 +336,10 @@ class MainActivity : Activity() {
         val bar = volumeSeekBar { volumeLabel.text = "${volumePercent()}%" }
         add(card, bar, 8, -1, dp(48))
         add(page, card, 17)
-        if (active && !prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) {
+        if (active && !bubbleVisible) {
             add(page, roundedButton("Restore floating button") {
                 svc?.setBubbleVisible(true)
+                if (svc?.isBubbleVisible() != true) toast("Could not restore button; try restarting Accessibility")
                 render()
             }, 16)
         }
@@ -407,7 +416,7 @@ class MainActivity : Activity() {
         snapRow.addView(snapSwitch, LinearLayout.LayoutParams(dp(58), dp(52)))
         add(controls, snapRow, 10)
         add(controls, roundedButton(
-            if (prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide floating control" else "Show floating control",
+            if (svc?.isBubbleVisible() ?: prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide floating control" else "Show floating control",
             false
         ) { toggleBubble() }, 14)
         add(controls, roundedButton("Reset bubble position", false) {
@@ -565,9 +574,13 @@ class MainActivity : Activity() {
 
     private fun toggleBubble() {
         if (svc == null) { openAccessibility(); return }
-        val next = !prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
+        val next = svc?.isBubbleVisible() != true
         svc?.setBubbleVisible(next)
-        toast(if (next) "Floating control shown" else "Floating control hidden — open KEYVIORA to restore it")
+        toast(
+            if (next && svc?.isBubbleVisible() != true) "Unable to display the button. Try Accessibility settings."
+            else if (next) "Floating control shown"
+            else "Floating control hidden — open KEYVIORA to restore it"
+        )
         render()
     }
 
@@ -603,7 +616,7 @@ class MainActivity : Activity() {
         add(page, text("Safety & setup", 30f, TouchStyle.WHITE, true), 12)
         add(page, text("See what's ready, enable what's missing.", 13f, TouchStyle.MUTED), 4)
         val ready = svc != null
-        val visible = prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
+        val visible = svc?.isBubbleVisible() == true
         val cameraReady = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         val status = card()
         add(status, text(if (ready && visible) "✓ KEYVIORA is ready" else "Finish setting up KEYVIORA", 18f, if (ready && visible) TouchStyle.MINT else TouchStyle.AMBER, true))
