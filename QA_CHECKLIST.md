@@ -1,4 +1,4 @@
-# KEYVIORA 0.7.0-beta — HONOR / Android acceptance checklist
+# KEYVIORA 0.8.0-beta — HONOR / Android acceptance checklist
 
 ## Onboarding & recovery
 - [ ] On first install, Home clearly offers **Enable accessibility**, and tapping it opens system settings.
@@ -35,6 +35,15 @@
 - [ ] Confirm the bubble stays clear of top status bar and bottom gesture navigation zone when dragged or rotated.
 - [ ] Assign None to a gesture and invoke it with the menu open; menu must stay open.
 - [ ] Ensure device screen reader announcements and menu control labels remain understandable.
+
+## 0.8 quick-grid and touch feedback
+- [ ] Customize each of six primary quick-control tiles from Gestures; verify every selection appears in the floating menu.
+- [ ] Assign NONE to a quick tile; pressing it must not trigger a system action.
+- [ ] Restore the six recommended buttons and confirm independently pinned More Tools shortcuts remain as configured.
+- [ ] Turn touch feedback off; gestures and overlay buttons must stop invoking haptic feedback.
+- [ ] Turn touch feedback on; verify the device's system vibration preference is still honored.
+- [ ] On compact and landscape displays, all six actions remain reachable by scrolling.
+- [ ] Run the exact GitHub 0.8 commit's unit tests, debug APK build, lint and emulator launch.
 
 ## Function & safety
 - [ ] Lock screen works; HONOR double-tap-to-wake (if supported) wakes it again.
