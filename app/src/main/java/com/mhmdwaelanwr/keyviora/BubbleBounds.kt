@@ -11,6 +11,16 @@ internal object BubbleBounds {
         return position.coerceIn(0, maximum)
     }
 
+    /** Respect status/navigation-bar comfort zones, even on tiny displays. */
+    fun clampWithinInsets(
+        position: Int, displaySize: Int, bubbleSize: Int, startInset: Int, endInset: Int
+    ): Int {
+        val maximum = clamp(Int.MAX_VALUE, displaySize, bubbleSize)
+        val first = startInset.coerceAtLeast(0).coerceAtMost(maximum)
+        val last = (maximum - endInset.coerceAtLeast(0)).coerceAtLeast(first)
+        return position.coerceIn(first, last)
+    }
+
     /** Choose the nearest side without moving the control outside the display. */
     fun snapToEdge(position: Int, displaySize: Int, bubbleSize: Int, inset: Int): Int {
         val end = clamp(Int.MAX_VALUE, displaySize, bubbleSize)
