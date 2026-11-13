@@ -3,6 +3,7 @@ package com.mhmdwaelanwr.keyviora
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.content.res.ColorStateList
@@ -17,6 +18,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +28,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.SeekBar
+import android.widget.ScrollView
 import android.widget.Toast
 import kotlin.math.roundToInt
 
@@ -41,6 +44,17 @@ class TouchAccessibilityService : AccessibilityService() {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var menuView: View? = null
     private var flashlightOn = false
+    private var torchCameraId: String? = null
+    private var torchCallbackRegistered = false
+    private val torchCallback = object : CameraManager.TorchCallback() {
+        override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+            if (cameraId == torchCameraId) flashlightOn = enabled
+        }
+
+        override fun onTorchModeUnavailable(cameraId: String) {
+            if (cameraId == torchCameraId) flashlightOn = false
+        }
+    }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun prefs() = TouchPrefs.prefs(this)
@@ -56,6 +70,19 @@ class TouchAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
     override fun onInterrupt() = Unit
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The usable display dimensions can change after rotation and multi-window changes.
+        bubbleParams?.let { params ->
+            clampBubblePosition(params)
+            bubbleView?.let { view ->
+                try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+            }
+            persistBubblePosition(params)
+        }
+        closeMenu()
+    }
+
     override fun onUnbind(intent: Intent?): Boolean {
         cleanup()
         return super.onUnbind(intent)
@@ -67,6 +94,13 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     private fun cleanup() {
+        handler.removeCallbacksAndMessages(null)
+        if (torchCallbackRegistered) {
+            try {
+                (getSystemService(CAMERA_SERVICE) as CameraManager).unregisterTorchCallback(torchCallback)
+            } catch (_: Exception) { }
+            torchCallbackRegistered = false
+        }
         closeMenu()
         bubbleView?.let { view ->
             try { windowManager.removeView(view) } catch (_: Exception) { }
@@ -83,13 +117,30 @@ class TouchAccessibilityService : AccessibilityService() {
             if (borderColor != null) setStroke(dp(2), borderColor)
         }
 
+    private fun clampBubblePosition(params: WindowManager.LayoutParams) {
+        val metrics = resources.displayMetrics
+        params.x = BubbleBounds.clamp(params.x, metrics.widthPixels, params.width)
+        params.y = BubbleBounds.clampWithinInsets(
+            params.y, metrics.heightPixels, params.height, dp(28), dp(44)
+        )
+    }
+
+    private fun persistBubblePosition(params: WindowManager.LayoutParams) {
+        prefs().edit().putInt(TouchPrefs.X, params.x).putInt(TouchPrefs.Y, params.y).apply()
+    }
+
     private fun createBubble() {
         if (bubbleView != null) return
-        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60))
+        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88))
         val button = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF1B3355.toInt(), 0xFF345783.toInt())
             elevation = dp(8).toFloat()
-            contentDescription = "KEYVIORA floating button"
+            contentDescription = "KEYVIORA floating button. Double tap to activate the configured single-tap action."
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            // TalkBack invokes accessibility ACTION_CLICK rather than the raw touch gestures.
+            setOnClickListener { runConfigured(TouchPrefs.SINGLE, "MENU") }
         }
         val center = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF2F5591.toInt())
@@ -114,11 +165,19 @@ class TouchAccessibilityService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = prefs().getInt(TouchPrefs.X, defaultX).coerceIn(0, (metrics.widthPixels - diameter).coerceAtLeast(0))
-            y = prefs().getInt(TouchPrefs.Y, defaultY).coerceIn(0, (metrics.heightPixels - diameter).coerceAtLeast(0))
+            x = BubbleBounds.clamp(prefs().getInt(TouchPrefs.X, defaultX), metrics.widthPixels, diameter)
+            y = BubbleBounds.clampWithinInsets(
+                prefs().getInt(TouchPrefs.Y, defaultY),
+                metrics.heightPixels, diameter, dp(28), dp(44)
+            )
         }
         bubbleParams = layout
         bubbleView = button
+        var touchStartRawX = 0f
+        var touchStartRawY = 0f
+        var bubbleStartX = layout.x
+        var bubbleStartY = layout.y
+        var wasDragged = false
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
@@ -133,19 +192,36 @@ class TouchAccessibilityService : AccessibilityService() {
                 runConfigured(TouchPrefs.LONG, "LOCK")
             }
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+                wasDragged = true
                 val p = bubbleParams ?: return false
-                p.x = (p.x - distanceX).roundToInt().coerceIn(0, (resources.displayMetrics.widthPixels - p.width).coerceAtLeast(0))
-                p.y = (p.y - distanceY).roundToInt().coerceIn(0, (resources.displayMetrics.heightPixels - p.height).coerceAtLeast(0))
+                // Absolute displacement avoids losing sub-pixel drags to per-frame rounding.
+                p.x = (bubbleStartX + e2.rawX - touchStartRawX).roundToInt()
+                p.y = (bubbleStartY + e2.rawY - touchStartRawY).roundToInt()
+                clampBubblePosition(p)
                 try { windowManager.updateViewLayout(button, p) } catch (_: Exception) { }
                 return true
             }
         })
         button.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                bubbleStartX = bubbleParams?.x ?: 0
+                bubbleStartY = bubbleParams?.y ?: 0
+                touchStartRawX = event.rawX
+                touchStartRawY = event.rawY
+                wasDragged = false
+            }
             detector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                bubbleParams?.let {
-                    prefs().edit().putInt(TouchPrefs.X, it.x).putInt(TouchPrefs.Y, it.y).apply()
+                bubbleParams?.let { params ->
+                    if (wasDragged && prefs().getBoolean(TouchPrefs.SNAP_TO_EDGE, true)) {
+                        params.x = BubbleBounds.snapToEdge(
+                            params.x, resources.displayMetrics.widthPixels, params.width, dp(10)
+                        )
+                        try { windowManager.updateViewLayout(button, params) } catch (_: Exception) { }
+                    }
+                    persistBubblePosition(params)
                 }
+                wasDragged = false
             }
             true
         }
@@ -162,18 +238,38 @@ class TouchAccessibilityService : AccessibilityService() {
     fun refreshAppearance() {
         val view = bubbleView ?: return
         val params = bubbleParams ?: return
-        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60))
+        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88))
         params.width = size
         params.height = size
+        clampBubblePosition(params)
+        persistBubblePosition(params)
         val center = (view as? FrameLayout)?.getChildAt(0)
         center?.layoutParams = FrameLayout.LayoutParams(size * 4 / 5, size * 4 / 5, Gravity.CENTER)
         (center as? FrameLayout)?.getChildAt(0)?.let { dot ->
             dot.layoutParams = FrameLayout.LayoutParams(size * 2 / 5, size * 2 / 5, Gravity.CENTER)
             dot.background = TouchStyle.oval(this, prefs().getInt(TouchPrefs.ACCENT, TouchStyle.BLUE))
         }
-        view.alpha = prefs().getInt(TouchPrefs.OPACITY, 85) / 100f
+        view.alpha = prefs().getInt(TouchPrefs.OPACITY, 85).coerceIn(35, 100) / 100f
         try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
     }
+
+    /** Recovery action from Settings when the bubble was dragged to an inconvenient edge. */
+    fun resetBubblePosition() {
+        if (bubbleParams == null) createBubble()
+        val params = bubbleParams ?: return
+        val metrics = resources.displayMetrics
+        params.x = metrics.widthPixels - params.width - dp(12)
+        params.y = metrics.heightPixels / 4
+        clampBubblePosition(params)
+        persistBubblePosition(params)
+        bubbleView?.let { view ->
+            try { windowManager.updateViewLayout(view, params) } catch (_: Exception) { }
+        }
+        setBubbleVisible(true)
+    }
+
+    /** Actual overlay state, not merely the last value saved in preferences. */
+    fun isBubbleVisible(): Boolean = bubbleView?.visibility == View.VISIBLE
 
     fun setBubbleVisible(visible: Boolean) {
         prefs().edit().putBoolean(TouchPrefs.BUBBLE_VISIBLE, visible).apply()
@@ -182,14 +278,25 @@ class TouchAccessibilityService : AccessibilityService() {
         if (!visible) closeMenu()
     }
 
+    private fun hapticFeedback(view: View?) {
+        if (prefs().getBoolean(TouchPrefs.HAPTIC_ENABLED, true)) {
+            view?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+
     private fun runConfigured(key: String, defaultAction: String) {
-        execute(prefs().getString(key, defaultAction) ?: defaultAction)
+        val saved = prefs().getString(key, defaultAction)
+        val action = TouchActionCatalog.resolve(saved, defaultAction).key
+        if (action != "NONE") hapticFeedback(bubbleView)
+        execute(action)
     }
 
     /** Allow app dashboard cards to execute the same actions as the overlay. */
     fun performNamedAction(action: String) { execute(action) }
 
     private fun execute(action: String) {
+        // An explicitly disabled gesture must not close an already-open panel.
+        if (action == "NONE") return
         // Close first so system screenshots do not capture the expanded menu.
         if (action != "MENU") closeMenu()
         when (action) {
@@ -268,21 +375,32 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun toggleFlashlight() {
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            toast("افتح التطبيق واسمح بصلاحية الكاميرا لتشغيل الكشاف")
-            openApp()
+            toast("اسمح بصلاحية الكاميرا، ثم اضغط على الكشاف مرة أخرى")
+            openApp(requestCameraPermission = true)
             return
         }
         try {
             val manager = getSystemService(CAMERA_SERVICE) as CameraManager
-            val cameraId = manager.cameraIdList.firstOrNull {
+            // Prefer a rear camera with a torch, not a front/auxiliary camera.
+            val available = manager.cameraIdList.filter {
                 manager.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             }
+            val cameraId = torchCameraId?.takeIf { it in available }
+                ?: available.firstOrNull {
+                    manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) ==
+                        CameraCharacteristics.LENS_FACING_BACK
+                } ?: available.firstOrNull()
             if (cameraId == null) {
                 toast("لم يتم العثور على كشاف متاح")
                 return
             }
+            torchCameraId = cameraId
+            if (!torchCallbackRegistered) {
+                manager.registerTorchCallback(torchCallback, handler)
+                torchCallbackRegistered = true
+            }
             manager.setTorchMode(cameraId, !flashlightOn)
-            flashlightOn = !flashlightOn
+            flashlightOn = !flashlightOn // Callback keeps state synced with external toggles.
         } catch (_: Exception) {
             toast("الكشاف مشغول أو غير متاح")
         }
@@ -293,9 +411,13 @@ class TouchAccessibilityService : AccessibilityService() {
         catch (_: Exception) { toast("تعذر فتح الإعدادات") }
     }
 
-    private fun openApp() {
-        try { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (_: Exception) { toast("تعذر فتح التطبيق") }
+    private fun openApp(requestCameraPermission: Boolean = false) {
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_REQUEST_CAMERA_PERMISSION, requestCameraPermission)
+            startActivity(intent)
+        } catch (_: Exception) { toast("تعذر فتح التطبيق") }
     }
 
     private fun menuText(content: String, size: Float = 14f, color: Int = TouchStyle.WHITE, strong: Boolean = false): TextView =
@@ -323,24 +445,36 @@ class TouchAccessibilityService : AccessibilityService() {
         header.addView(title, LinearLayout.LayoutParams(0, dp(34), 1f))
         val dismiss = menuText("×", 29f).apply {
             gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
             contentDescription = "Close quick controls"
             setOnClickListener { closeMenu() }
         }
-        header.addView(dismiss, LinearLayout.LayoutParams(dp(35), dp(35)))
+        header.addView(dismiss, LinearLayout.LayoutParams(dp(48), dp(48)))
         panel.addView(header)
 
-        val shortcuts = if (page == 0) listOf(
-            Triple("⏣", "Lock", "LOCK"), Triple("＋", "Vol up", "VOLUME_UP"),
-            Triple("−", "Vol down", "VOLUME_DOWN"), Triple("▣", "Screenshot", "SCREENSHOT"),
-            Triple("☼", "Torch", "FLASHLIGHT"), Triple("⏻", "Power", "POWER")
-        ) else listOf(
-            Triple("◉", "Wi-Fi", "WIFI"), Triple("ᛒ", "Bluetooth", "BLUETOOTH"),
-            Triple("♧", "Notices", "NOTIFICATIONS"), Triple("☷", "Quick panel", "QUICK_SETTINGS"),
+        val favorites = TouchPrefs.favoriteKeys.mapIndexed { index, preference ->
+            val fallback = TouchPrefs.favoriteDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs().getString(preference, fallback), fallback)
+            Triple(action.glyph, action.shortLabel, action.key)
+        }
+        val quickShortcuts = TouchPrefs.quickKeys.mapIndexed { index, preference ->
+            val fallback = TouchPrefs.quickDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs().getString(preference, fallback), fallback)
+            Triple(action.glyph, action.shortLabel, action.key)
+        }
+        val shortcuts = if (page == 0) quickShortcuts else favorites + listOf(
+            Triple("ᛒ", "Bluetooth", "BLUETOOTH"), Triple("☷", "Quick panel", "QUICK_SETTINGS"),
             Triple("◐", "Display", "DISPLAY"), Triple("♫", "Sound", "SOUND"),
-            Triple("☼", "Torch", "FLASHLIGHT"), Triple("⚙", "App", "APP"),
-            Triple("✕", "Hide", "HIDE")
+            Triple("☼", "Torch", "FLASHLIGHT"), Triple("✕", "Hide", "HIDE")
         )
-        for (r in shortcuts.chunked(3)) {
+        if (page == 1) {
+            panel.addView(menuText("PINNED SHORTCUTS", 11f, TouchStyle.MUTED, true))
+        }
+        for ((rowIndex, r) in shortcuts.chunked(3).withIndex()) {
+            if (page == 1 && rowIndex == 1) {
+                panel.addView(menuText("MORE ACTIONS", 11f, TouchStyle.MUTED, true))
+            }
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for ((symbol, label, action) in r) {
                 val cell = LinearLayout(this).apply {
@@ -350,7 +484,10 @@ class TouchAccessibilityService : AccessibilityService() {
                     isClickable = true
                     isFocusable = true
                     contentDescription = label
-                    setOnClickListener { execute(action) }
+                    setOnClickListener {
+                        hapticFeedback(it)
+                        execute(action)
+                    }
                 }
                 val glyph = menuText(symbol, 25f, if (action == "LOCK") TouchStyle.WHITE else accent, true).apply {
                     gravity = Gravity.CENTER
@@ -394,8 +531,8 @@ class TouchAccessibilityService : AccessibilityService() {
                 override fun onStartTrackingTouch(bar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(bar: SeekBar?) = Unit
             })
-            audioCard.addView(seek, LinearLayout.LayoutParams(-1, dp(38)))
-            panel.addView(audioCard, LinearLayout.LayoutParams(-1, dp(79)).apply { topMargin = dp(10) })
+            audioCard.addView(seek, LinearLayout.LayoutParams(-1, dp(48)))
+            panel.addView(audioCard, LinearLayout.LayoutParams(-1, dp(96)).apply { topMargin = dp(10) })
 
             val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             val navigate = listOf(Triple("↶", "Back", "BACK"),Triple("⌂", "Home", "HOME"),Triple("▤", "Recent", "RECENTS"))
@@ -405,7 +542,7 @@ class TouchAccessibilityService : AccessibilityService() {
                     gravity = Gravity.CENTER
                     background = background(TouchStyle.SURFACE, 16)
                     isClickable = true
-                    setOnClickListener { execute(action) }
+                    setOnClickListener { hapticFeedback(it); execute(action) }
                 }
                 val iconText = menuText(icon, 25f, TouchStyle.MINT, true).apply { gravity = Gravity.CENTER }
                 cell.addView(iconText, LinearLayout.LayoutParams(-1, dp(32)))
@@ -415,22 +552,39 @@ class TouchAccessibilityService : AccessibilityService() {
             }
             panel.addView(nav, LinearLayout.LayoutParams(-1, dp(75)).apply { topMargin = dp(7) })
         }
-        val more = menuText(if (page == 0) "More tools   ›" else "‹   Back to quick controls", 12f, accent, true).apply {
+        val more = menuText(if (page == 0) "More tools   ›" else "‹   Back to quick controls", 14f, accent, true).apply {
             gravity = Gravity.CENTER
             isClickable = true
+            isFocusable = true
+            contentDescription = if (page == 0) "Show more tools" else "Back to quick controls"
             setOnClickListener { closeMenu(); showMenuPage(if (page == 0) 1 else 0) }
         }
-        panel.addView(more, LinearLayout.LayoutParams(-1, dp(35)).apply { topMargin = dp(7) })
+        panel.addView(more, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(7) })
 
+        // Keep the full menu reachable with larger fonts or limited landscape height.
+        val maxHeight = (resources.displayMetrics.heightPixels - dp(40)).coerceAtLeast(dp(160))
+        val scroll = object : ScrollView(this) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                super.onMeasure(
+                    widthMeasureSpec,
+                    View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST)
+                )
+            }
+        }.apply {
+            isVerticalScrollBarEnabled = false
+            isFillViewport = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            addView(panel)
+        }
         val screen = resources.displayMetrics.widthPixels
-        val width = minOf(screen - dp(24), dp(380))
+        val width = minOf((screen - dp(24)).coerceAtLeast(dp(160)), dp(380))
         val params = WindowManager.LayoutParams(
             width, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.CENTER }
-        try { windowManager.addView(panel, params); menuView = panel }
+        try { windowManager.addView(scroll, params); menuView = scroll }
         catch (_: Exception) { toast("تعذر فتح القائمة") }
     }
 

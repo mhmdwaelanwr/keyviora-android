@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: keyviora-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -32,8 +36,8 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Verify Kotlin/Android compilation
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Compile, run unit tests and lint
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon --stacktrace
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
@@ -42,15 +46,20 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-      - name: Android lint report
-        if: success()
-        run: gradle :app:lintDebug --no-daemon --stacktrace
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: KEYVIORA-lint-report
           path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KEYVIORA-unit-tests
+          path: app/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -77,3 +86,14 @@ jobs:
             adb shell am start -W -n com.mhmdwaelanwr.keyviora/.MainActivity
             sleep 7
             adb shell pidof com.mhmdwaelanwr.keyviora
+            mkdir -p screenshots
+            adb shell screencap -p /sdcard/keyviora-home.png
+            adb pull /sdcard/keyviora-home.png screenshots/keyviora-home.png
+      - name: Upload emulator home screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KEYVIORA-emulator-home
+          path: screenshots/keyviora-home.png
+          if-no-files-found: ignore
+          retention-days: 14

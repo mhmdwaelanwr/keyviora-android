@@ -2,30 +2,68 @@
 
 **One Touch. Full Control.**
 
-KEYVIORA is a lightweight offline Android accessibility utility with a movable floating control panel, built with Kotlin and designed for people whose physical power/volume keys are damaged. It is currently a **pre-release candidate; not yet tested on a physical HONOR 50**.
+KEYVIORA is a lightweight offline Android accessibility utility with a movable floating control panel, built with Kotlin and designed for people whose physical power/volume keys are damaged. It is currently a **pre-release candidate; not yet tested on a physical HONOR phone**.
 
 [Editable Figma design](https://www.figma.com/design/eg7BsPgq2CYyORfeHb3BuG) · Android Studio source · No analytics or internet permission.
 
+## What's new in 0.8.0-beta (one-hand control)
+
+- **Fully configurable quick panel:** personalize all six primary quick controls in **Gestures → Quick control grid**.
+- Change any button to Lock, Back, Home, Torch, Screenshot, Volume, Wi-Fi settings, Power or **No action**; the chosen icons and captions update in the floating panel.
+- The three **pinned More tools** buttons stay independently configurable.
+- **Optional haptic feedback:** turn light touch feedback on or off in Style.
+- **Reset quick-control grid** without losing other custom settings. Restoring all defaults still resets everything.
+- Unit tests verify all six quick defaults and prevent broken shortcuts when a saved action no longer exists.
+
+## What's new in 0.7.0-beta (professional usability)
+
+- Three **pinned shortcuts** at the top of **More tools**, personalized from **Gestures → Pinned shortcuts**, with one-tap reset to recommended tools.
+- All configurable Android actions (including app launch and system settings) use one shared, tested action catalog.
+- **Truthful service status:** Home/Setup now check whether the overlay actually exists, rather than relying only on a stored visibility flag. A failed bubble can be retried from Home.
+- **TalkBack accessibility:** the bubble offers an actionable click for screen-reader users in addition to raw single/double/long touch gestures.
+- Keep the bubble clear of status/navigation-bar comfort margins, including after rotating or resizing.
+- Extra pure Kotlin regression tests for the action catalog and on-screen safe bounds.
+- A disabled gesture means **no action**: it does not unexpectedly close an existing quick-control menu.
+
+## What's new in 0.6.0-beta (comfort and recovery)
+
+- **Snap to edge:** a setting in Style magnetically moves the floating button to the nearest screen edge after dragging. Turn it off for free placement.
+- **Scroll position stays put** when you change Style or gesture options.
+- **Volume works before setup:** the volume buttons on Home use Android's media audio controls even before Accessibility is enabled.
+- **No action** is available as a gesture choice when you don't want an accidental shortcut.
+- **Restore all defaults:** confirmed reset of colors, gestures, button size, opacity and position; it restores a hidden floating button without revoking Android permissions.
+- JUnit tests cover regular/tiny screens and oversized magnetic edge margins.
+
+## What's new in 0.5.0-beta (UX)
+- Guided first-run Accessibility setup with a clear activation button.
+- Accurate visible/hidden button state on Home and a recovery action.
+- Setup diagnostics for Accessibility, bubble visibility and optional camera access.
+- Gesture help, configurable gestures with safe Hide confirmation, and one-tap default restore.
+- Larger accessible targets, better screen reader descriptions, readable color selection and vibration feedback.
+- Scrollable floating menu for landscape, large text and compact displays.
+- Automated emulator screenshot artifact for visual QA.
+
 ## Features
-- Floating overlay, movable by dragging; adjustable appearance, size and opacity.
+- Floating overlay, movable by dragging; adjustable appearance, size and opacity, with safe screen bounds and a reset button.
 - Media volume up/down and interactive volume slider.
 - Lock screen; system power dialog with an extra safety warning.
-- Screenshot, flashlight, Home, Back, Recents, notifications and Quick Settings.
+- Screenshot, flashlight with camera-permission recovery and torch-state tracking, Home, Back, Recents, notifications and Quick Settings.
 - Tap, double tap and long press configurable independently.
-- Second overlay page for extra quick shortcuts.
+- Second overlay page for extra quick shortcuts, scrolling when vertical space is limited.
 - Settings stored locally, no account required.
 
 ## Build on GitHub Actions
 1. Open **Actions → KEYVIORA — Android CI** and select the latest run or **Run workflow**.
-2. A green run means CI completed `assembleDebug`, `lintDebug` **and an Android 15 emulator app-launch smoke test**; download the **KEYVIORA-debug-APK** artifact from the run.
+2. A green run means CI completed JVM unit tests, `assembleDebug`, `lintDebug` **and an Android 15 emulator app-launch smoke test**; download the **KEYVIORA-debug-APK** artifact from the run.
 3. Extract ZIP to retrieve `app-debug.apk`, then install it on Android; enable **KEYVIORA Controls** under Accessibility services.
-4. If CI fails, open the job log. The APK should not be treated as validated until the build succeeds.
+4. The `KEYVIORA-emulator-home` artifact captures the startup screen for visual review when the emulator job succeeds.
+5. If CI fails, open the job log. The APK should not be treated as validated until the build succeeds.
 
 *The pipeline does not prove hardware behavior.* See [QA_CHECKLIST.md](QA_CHECKLIST.md) for on-device tests.
 
 ## Clone in Android Studio
 1. **File → New → Project from Version Control** (or **Get from VCS**).
-2. Use `https://github.com/mhmdwaelanwr/keyviora-android.git` once the repository exists.
+2. Use `https://github.com/mhmdwaelanwr/keyviora-android.git`.
 3. Let Android Studio import the Gradle Kotlin project (Android Gradle Plugin **8.7.3**, Gradle **8.9**, JDK **17**, Android SDK Platform **35**).
 4. If Android Studio can't find the Gradle wrapper, use an installed Gradle **8.9** once to run `gradle wrapper --gradle-version 8.9`; this package includes `gradle-wrapper.properties`, but no wrapper JAR. Then use the generated `gradlew`.
 5. Run `:app:assembleDebug`, then test on the phone.
@@ -42,7 +80,7 @@ gradle :app:assembleDebug
 - **Do not fully power off your phone as a test.** Android cannot boot a fully powered-off device without working hardware/alternate OEM method. The power shortcut opens a warning before Android's system power dialog.
 - The floating button cannot wake the screen by itself. Enable HONOR **double tap to wake** or **raise to wake** if available.
 - Android security restrictions mean Wi-Fi/Bluetooth/data toggles may open system Settings rather than toggle directly.
-- Some OEM screens restrict screenshots. Flashlight access requires CAMERA permission.
+- Some OEM screens restrict screenshots. Flashlight access requires CAMERA permission; the app offers a permission prompt when first needed.
 - Accessibility controls use global actions; this service does **not** read window contents.
 - The app is not an official HONOR product and is not affiliated with HONOR.
 
@@ -50,9 +88,10 @@ gradle :app:assembleDebug
 - `app/src/main/java/com/mhmdwaelanwr/keyviora/MainActivity.kt` — main UI.
 - `TouchAccessibilityService.kt` — floating controls and Android actions.
 - `TouchPrefs.kt`, `TouchStyle.kt` — preferences and UI tokens.
+- `BubbleBounds.kt` and `BubbleBoundsTest.kt` — overlay bounds logic and regression tests.
 - `.github/workflows/android-build.yml` — CI: debug APK and lint report.
 
-See [Brand Design System](design/BRAND.md), [CI/static QA status](QA_REPORT.md) and [HONOR 50 test checklist](QA_CHECKLIST.md).
+See [Brand Design System](design/BRAND.md), [CI/QA status](QA_REPORT.md) and [HONOR device acceptance checklist](QA_CHECKLIST.md).
 
 ## License
 Copyright © 2026 Mohamed Anwar. **All rights reserved at this stage.** No open-source license has been granted yet. This is intentional until the publishing/distribution decision is made.

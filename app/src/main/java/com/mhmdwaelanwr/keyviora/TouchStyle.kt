@@ -20,6 +20,13 @@ object TouchStyle {
     val accentColors = intArrayOf(BLUE, MINT, Color.rgb(167,139,250), AMBER,
         Color.rgb(251,113,133), WHITE)
 
+    /** Choose readable foreground text for light accent colors (mint, amber, white). */
+    fun onAccent(color: Int): Int {
+        val perceivedBrightness = (Color.red(color) * 299 +
+            Color.green(color) * 587 + Color.blue(color) * 114) / 1000
+        return if (perceivedBrightness > 160) BG else WHITE
+    }
+
     fun dp(context: Context, number: Int): Int = (number * context.resources.displayMetrics.density + 0.5f).toInt()
 
     fun bg(context: Context, color: Int, radius: Int = 20, stroke: Int? = null): GradientDrawable =
