@@ -82,3 +82,14 @@ jobs:
             adb shell am start -W -n com.mhmdwaelanwr.keyviora/.MainActivity
             sleep 7
             adb shell pidof com.mhmdwaelanwr.keyviora
+            mkdir -p screenshots
+            adb shell screencap -p /sdcard/keyviora-home.png
+            adb pull /sdcard/keyviora-home.png screenshots/keyviora-home.png
+      - name: Upload emulator home screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KEYVIORA-emulator-home
+          path: screenshots/keyviora-home.png
+          if-no-files-found: ignore
+          retention-days: 14
