@@ -543,6 +543,41 @@ class MainActivity : Activity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }, 12)
+        section("PINNED SHORTCUTS")
+        add(page, text("Choose the three buttons shown first in More tools. Tap a row to change it.", 13f, TouchStyle.MUTED), 2)
+        val pinnedCard = card()
+        TouchPrefs.favoriteKeys.forEachIndexed { index, key ->
+            val fallback = TouchPrefs.favoriteDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs.getString(key, fallback), fallback)
+            val item = row().apply {
+                minimumHeight = dp(66)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Pinned shortcut ${index + 1}: ${action.shortLabel}. Double tap to change"
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    selectAction(key, fallback)
+                }
+            }
+            add(item, text(action.glyph, 22f, color(), true).apply { gravity = Gravity.CENTER }, 0, dp(44))
+            val info = column()
+            add(info, text("Pinned ${index + 1}", 14f, TouchStyle.WHITE, true))
+            add(info, text(action.shortLabel, 12f, TouchStyle.MUTED), 4)
+            item.addView(info, LinearLayout.LayoutParams(0, -2, 1f))
+            add(item, text("›", 23f, TouchStyle.MUTED), 0, dp(24))
+            add(pinnedCard, item)
+            if (index != TouchPrefs.favoriteKeys.lastIndex) {
+                add(pinnedCard, View(this).apply { setBackgroundColor(TouchStyle.BORDER) }, 0, -1, dp(1))
+            }
+        }
+        add(page, pinnedCard, 12)
+        add(page, roundedButton("Restore recommended shortcuts", false) {
+            val editor = prefs.edit()
+            TouchPrefs.favoriteKeys.forEach { editor.remove(it) }
+            editor.apply()
+            render()
+            toast("Pinned shortcuts restored")
+        }, 11)
         section("TRY A QUICK ACTION")
         val grid = column()
         listOf(
