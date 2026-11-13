@@ -38,6 +38,8 @@ class MainActivity : Activity() {
     private lateinit var page: LinearLayout
     private lateinit var bottomNav: LinearLayout
     private var currentScroller: ScrollView? = null
+    private var dashboardVolumeBar: SeekBar? = null
+    private var dashboardVolumeText: TextView? = null
     private val prefs get() = TouchPrefs.prefs(this)
     private fun dp(n: Int) = TouchStyle.dp(this, n)
     private val svc get() = TouchAccessibilityService.instance
@@ -220,6 +222,7 @@ class MainActivity : Activity() {
                     if (action == "VOLUME_UP") AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
                     AudioManager.FLAG_SHOW_UI
                 )
+                updateDashboardVolume()
             } catch (_: Exception) { toast("Could not change media volume") }
             return
         }
@@ -339,6 +342,8 @@ class MainActivity : Activity() {
         add(card, volumeHeader)
         val volumeLabel = volumeHeader.getChildAt(volumeHeader.childCount - 1) as TextView
         val bar = volumeSeekBar { volumeLabel.text = "${volumePercent()}%" }
+        dashboardVolumeText = volumeLabel
+        dashboardVolumeBar = bar
         add(card, bar, 8, -1, dp(48))
         add(page, card, 17)
         if (active && !bubbleVisible) {
@@ -349,6 +354,11 @@ class MainActivity : Activity() {
             }, 16)
         }
         add(page, text("Tip: Drag the floating button to move it. Set single, double and long taps in Gestures.", 12f, TouchStyle.MUTED), 16)
+    }
+
+    private fun updateDashboardVolume() {
+        dashboardVolumeBar?.progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        dashboardVolumeText?.text = "${volumePercent()}%"
     }
 
     private fun volumePercent(): Int {
