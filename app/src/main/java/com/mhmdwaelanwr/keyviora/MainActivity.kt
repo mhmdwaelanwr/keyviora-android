@@ -17,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -291,7 +292,7 @@ class MainActivity : Activity() {
         add(card, volumeHeader)
         val volumeLabel = volumeHeader.getChildAt(volumeHeader.childCount - 1) as TextView
         val bar = volumeSeekBar { volumeLabel.text = "${volumePercent()}%" }
-        add(card, bar, 8, -1, dp(32))
+        add(card, bar, 8, -1, dp(48))
         add(page, card, 17)
         if (active && !prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) {
             add(page, roundedButton("Restore floating button") {
@@ -386,11 +387,17 @@ class MainActivity : Activity() {
                     render()
                 }
             }
-            colors.addView(v, LinearLayout.LayoutParams(0, dp(43), 1f).apply {
-                leftMargin = dp(5); rightMargin = dp(5)
+            colors.addView(v, LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+                leftMargin = dp(6); rightMargin = dp(6)
             })
         }
-        add(page, colors, 5)
+        val colorScroller = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            addView(colors)
+            contentDescription = "Swipe horizontally to choose an accent color"
+        }
+        add(page, colorScroller, 5)
         val helpers = card()
         add(helpers, text("Comfort & accessibility", 16f, TouchStyle.WHITE, true))
         add(helpers, text("The floating control uses no decorative animations. Keep size at 56 dp or larger for an easier touch target.", 13f, TouchStyle.MUTED), 9)
@@ -416,7 +423,7 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(bar: SeekBar?) { render() }
             })
         }
-        add(parent, seek, 3, -1, dp(34))
+        add(parent, seek, 3, -1, dp(48))
     }
 
     private fun gestures() {
