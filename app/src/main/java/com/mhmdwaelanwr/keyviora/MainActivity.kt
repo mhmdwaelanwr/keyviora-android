@@ -166,8 +166,15 @@ class MainActivity : Activity() {
                 background = TouchStyle.bg(this@MainActivity, if (selected) 0xFF203D69.toInt() else TouchStyle.SURFACE, 17)
                 isClickable = true
                 isFocusable = true
-                contentDescription = item.second
-                setOnClickListener { tab = i; render() }
+                isSelected = selected
+                contentDescription = "${item.second} tab${if (selected) ", selected" else ""}"
+                setOnClickListener {
+                    if (tab != i) {
+                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        tab = i
+                        render()
+                    }
+                }
             }
             add(cell, text(item.first, 22f, if (selected) color() else TouchStyle.MUTED, true).apply { gravity = Gravity.CENTER }, 0)
             add(cell, text(item.second, 10f, if (selected) TouchStyle.WHITE else TouchStyle.MUTED).apply { gravity = Gravity.CENTER })
@@ -193,17 +200,18 @@ class MainActivity : Activity() {
         brand.addView(text("KEYVIORA", 16f, TouchStyle.WHITE, true),
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val active = svc != null
-        add(brand, chip(if (active) "● ACTIVE" else "● SET UP", if (active) 0xFF123F3A.toInt() else 0xFF463628.toInt(), if (active) TouchStyle.MINT else TouchStyle.AMBER), 0, -2)
+        val bubbleVisible = active && prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
+        add(brand, chip(if (bubbleVisible) "● ACTIVE" else if (active) "● HIDDEN" else "● SET UP", if (bubbleVisible) 0xFF123F3A.toInt() else 0xFF463628.toInt(), if (bubbleVisible) TouchStyle.MINT else TouchStyle.AMBER), 0, -2)
         add(page, brand)
         add(page, text("One touch.", 34f, TouchStyle.WHITE, true), 23)
         add(page, text("Total control.", 34f, color(), true))
-        add(page, text("بديل أزرار الباور والصوت على HONOR 50", 14f, TouchStyle.MUTED), 6)
+        add(page, text("بديل أزرار الباور والصوت على HONOR وأندرويد", 14f, TouchStyle.MUTED), 6)
 
         val hero = FrameLayout(this).apply { background = TouchStyle.bg(this@MainActivity, TouchStyle.SURFACE, 26, TouchStyle.BORDER) }
         val heroText = column().apply { pad(this, 17, 17, 0, 0) }
         add(heroText, text("Floating control", 18f, TouchStyle.WHITE, true))
-        add(heroText, text("Ready anywhere on screen", 12f, TouchStyle.MUTED), 7)
-        add(heroText, chip(if (active) "● SERVICE RUNNING" else "● ENABLE SERVICE", if (active) 0xFF17443C.toInt() else 0xFF453829.toInt(), if (active) TouchStyle.MINT else TouchStyle.AMBER), 24, -2)
+        add(heroText, text(if (bubbleVisible) "Ready anywhere on screen" else if (active) "Hidden — use Show button to restore" else "Enable Accessibility to get started", 12f, TouchStyle.MUTED), 7)
+        add(heroText, chip(if (bubbleVisible) "● BUTTON VISIBLE" else if (active) "● BUTTON HIDDEN" else "● ENABLE SERVICE", if (bubbleVisible) 0xFF17443C.toInt() else 0xFF453829.toInt(), if (bubbleVisible) TouchStyle.MINT else TouchStyle.AMBER), 24, -2)
         hero.addView(heroText, FrameLayout.LayoutParams(-2, -2, Gravity.START or Gravity.TOP))
         val halo = FrameLayout(this).apply { background = TouchStyle.oval(this@MainActivity, 0xFF1B3E72.toInt()) }
         val ring = FrameLayout(this).apply { background = TouchStyle.oval(this@MainActivity, 0xFF2F5591.toInt()) }
@@ -362,11 +370,14 @@ class MainActivity : Activity() {
         add(page, controls, 18)
         section("ACCENT COLORS")
         val colors = row().apply { gravity = Gravity.CENTER }
+        val accentNames = arrayOf("Blue", "Mint", "Violet", "Amber", "Rose", "White")
         TouchStyle.accentColors.forEachIndexed { i, c ->
             val selected = c == color()
             val v = text(if (selected) "✓" else "", 18f, TouchStyle.onAccent(c), true).apply {
                 gravity = Gravity.CENTER
-                contentDescription = "Color ${i + 1}"
+                isSelected = selected
+                isFocusable = true
+                contentDescription = "${accentNames[i]} accent${if (selected) ", selected" else ""}"
                 background = TouchStyle.oval(this@MainActivity, c, if (selected) TouchStyle.WHITE else null)
                 isClickable = true
                 setOnClickListener {
