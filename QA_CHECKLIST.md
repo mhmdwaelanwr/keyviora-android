@@ -1,4 +1,4 @@
-# KEYVIORA 0.6.0-beta — HONOR / Android acceptance checklist
+# KEYVIORA 0.7.0-beta — HONOR / Android acceptance checklist
 
 ## Onboarding & recovery
 - [ ] On first install, Home clearly offers **Enable accessibility**, and tapping it opens system settings.
@@ -26,6 +26,15 @@
 - [ ] Assign No action to a gesture; tapping/holding that gesture must do nothing.
 - [ ] Reset all settings prompts for confirmation and restores a hidden floating bubble.
 - [ ] On Android 15, Home content and bottom navigation do not overlap status or gesture navigation bars.
+
+## 0.7 pinned shortcuts and recovery
+- [ ] In Gestures, edit each of three pinned tools and verify the new icons and labels appear on the first row in More tools.
+- [ ] Reset pinned tools to defaults; verify Wi-Fi, Notices and App return.
+- [ ] If floating window creation fails, Home must not claim the bubble is ACTIVE, and restore must retry safely.
+- [ ] Turn on TalkBack, navigate to the bubble and activate it using the accessibility click gesture.
+- [ ] Confirm the bubble stays clear of top status bar and bottom gesture navigation zone when dragged or rotated.
+- [ ] Assign None to a gesture and invoke it with the menu open; menu must stay open.
+- [ ] Ensure device screen reader announcements and menu control labels remain understandable.
 
 ## Function & safety
 - [ ] Lock screen works; HONOR double-tap-to-wake (if supported) wakes it again.
