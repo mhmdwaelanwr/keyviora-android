@@ -26,6 +26,10 @@ import kotlin.math.roundToInt
 
 /** Native Android Views implementation of the Figma KEYVIORA screen system. */
 class MainActivity : Activity() {
+    companion object {
+        const val EXTRA_REQUEST_CAMERA_PERMISSION = "com.mhmdwaelanwr.keyviora.REQUEST_CAMERA"
+    }
+
     private var tab = 0
     private lateinit var page: LinearLayout
     private lateinit var bottomNav: LinearLayout
@@ -34,6 +38,7 @@ class MainActivity : Activity() {
     private val svc get() = TouchAccessibilityService.instance
     private val audio by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
     private fun color() = prefs.getInt(TouchPrefs.ACCENT, TouchStyle.BLUE)
+    private fun accentTextColor() = TouchStyle.onAccent(color())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +49,19 @@ class MainActivity : Activity() {
         render()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePermissionIntent(intent)
+    }
+
+    private fun handlePermissionIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_REQUEST_CAMERA_PERMISSION, false) == true) {
+            intent.removeExtra(EXTRA_REQUEST_CAMERA_PERMISSION)
+            requestCamera()
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("tab", tab)
         super.onSaveInstanceState(outState)
@@ -52,6 +70,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::page.isInitialized) render()
+        handlePermissionIntent(intent)
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_LONG).show()
@@ -96,7 +115,7 @@ class MainActivity : Activity() {
         return r
     }
     private fun roundedButton(label: String, primary: Boolean = true, handler: () -> Unit): TextView =
-        text(label, 14f, if (primary) TouchStyle.WHITE else TouchStyle.MINT, true).apply {
+        text(label, 14f, if (primary) accentTextColor() else TouchStyle.MINT, true).apply {
             gravity = Gravity.CENTER
             background = TouchStyle.bg(this@MainActivity, if (primary) color() else 0xFF17443C.toInt(), 16)
             minimumHeight = dp(46)
@@ -228,8 +247,10 @@ class MainActivity : Activity() {
         }
         add(page, grid)
         val card = card()
-        add(card, labelRow("◖))   Media volume", "Drag to adjust media sound", "${volumePercent()}%"))
-        val bar = volumeSeekBar()
+        val volumeHeader = labelRow("◖))   Media volume", "Drag to adjust media sound", "${volumePercent()}%")
+        add(card, volumeHeader)
+        val volumeLabel = volumeHeader.getChildAt(volumeHeader.childCount - 1) as TextView
+        val bar = volumeSeekBar { volumeLabel.text = "${volumePercent()}%" }
         add(card, bar, 8, -1, dp(32))
         add(page, card, 17)
         add(page, text("Tap the floating button to open your quick controls.", 12f, TouchStyle.MUTED), 16)
@@ -239,7 +260,7 @@ class MainActivity : Activity() {
         val maximum = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         return (100f * audio.getStreamVolume(AudioManager.STREAM_MUSIC) / maximum).roundToInt()
     }
-    private fun volumeSeekBar(): SeekBar = SeekBar(this).apply {
+    private fun volumeSeekBar(onVolumeChanged: (() -> Unit)? = null): SeekBar = SeekBar(this).apply {
         val maxVolume = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         max = maxVolume
         progress = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -248,7 +269,12 @@ class MainActivity : Activity() {
         progressBackgroundTintList = ColorStateList.valueOf(0xFF354A68.toInt())
         setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
-                if (fromUser) try { audio.setStreamVolume(AudioManager.STREAM_MUSIC, value, 0) } catch (_: Exception) { }
+                if (fromUser) {
+                    try {
+                        audio.setStreamVolume(AudioManager.STREAM_MUSIC, value, 0)
+                        onVolumeChanged?.invoke()
+                    } catch (_: Exception) { toast("Could not adjust media volume") }
+                }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
             override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
@@ -460,7 +486,25 @@ class MainActivity : Activity() {
     }
 
     private fun requestCamera() {
-        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) toast("Camera permission already granted")
-        else requestPermissions(arrayOf(Manifest.permission.CAMERA), 100)
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            toast("Camera permission already granted")
+        } else {
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), 100)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100) {
+            toast(
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+                    "Camera enabled. Tap Torch again to turn it on."
+                else "Camera permission denied. Flashlight cannot be used."
+            )
+        }
     }
 }
