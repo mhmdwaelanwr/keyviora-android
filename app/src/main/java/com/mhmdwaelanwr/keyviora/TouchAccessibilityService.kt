@@ -483,8 +483,8 @@ class TouchAccessibilityService : AccessibilityService() {
                 override fun onStartTrackingTouch(bar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(bar: SeekBar?) = Unit
             })
-            audioCard.addView(seek, LinearLayout.LayoutParams(-1, dp(38)))
-            panel.addView(audioCard, LinearLayout.LayoutParams(-1, dp(79)).apply { topMargin = dp(10) })
+            audioCard.addView(seek, LinearLayout.LayoutParams(-1, dp(48)))
+            panel.addView(audioCard, LinearLayout.LayoutParams(-1, dp(96)).apply { topMargin = dp(10) })
 
             val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             val navigate = listOf(Triple("↶", "Back", "BACK"),Triple("⌂", "Home", "HOME"),Triple("▤", "Recent", "RECENTS"))
