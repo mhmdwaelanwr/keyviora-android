@@ -410,7 +410,12 @@ class MainActivity : Activity() {
 
     private fun gestures() {
         add(page, text("Touch gestures", 30f, TouchStyle.WHITE, true), 12)
-        add(page, text("Make every gesture count.", 14f, TouchStyle.MUTED), 4)
+        add(page, text("Choose exactly what each tap on the floating control does.", 14f, TouchStyle.MUTED), 4)
+        val hint = card()
+        add(hint, text("Recommended setup", 15f, TouchStyle.WHITE, true))
+        add(hint, text("Single tap → Quick menu   •   Double tap → Screenshot   •   Hold → Lock screen", 13f, TouchStyle.MUTED), 8)
+        add(hint, text("Tip: A double tap waits briefly to distinguish it from a single tap.", 12f, TouchStyle.MUTED), 8)
+        add(page, hint, 19)
         val actions = card()
         val taps = arrayOf(
             Triple("◎", "Single tap", TouchPrefs.SINGLE),
@@ -425,7 +430,12 @@ class MainActivity : Activity() {
             val r = row().apply {
                 minimumHeight = dp(86)
                 isClickable = true
-                setOnClickListener { selectAction(key, fallback) }
+                isFocusable = true
+                contentDescription = "${item.second}, current action: $label. Double tap to change"
+                setOnClickListener {
+                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    selectAction(key, fallback)
+                }
             }
             add(r, text(item.first, 22f, color(), true).apply {
                 gravity = Gravity.CENTER
@@ -439,8 +449,24 @@ class MainActivity : Activity() {
             add(actions, r)
             if (index < 2) add(actions, View(this).apply { setBackgroundColor(TouchStyle.BORDER) }, 2, -1, dp(1))
         }
-        add(page, actions, 26)
-        section("AVAILABLE ACTIONS")
+        add(page, actions, 18)
+        add(page, roundedButton("Restore recommended gestures", false) {
+            AlertDialog.Builder(this)
+                .setTitle("Restore default gestures?")
+                .setMessage("Single tap opens the menu, double tap takes a screenshot and long press locks the screen. Your appearance settings will stay unchanged.")
+                .setPositiveButton("Restore") { _, _ ->
+                    prefs.edit()
+                        .putString(TouchPrefs.SINGLE, "MENU")
+                        .putString(TouchPrefs.DOUBLE, "SCREENSHOT")
+                        .putString(TouchPrefs.LONG, "LOCK")
+                        .apply()
+                    render()
+                    toast("Recommended gestures restored")
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }, 12)
+        section("TRY A QUICK ACTION")
         val grid = column()
         listOf(
             Triple("⏣", "Screen lock", "LOCK"), Triple("▣", "Screenshot", "SCREENSHOT"),
@@ -452,8 +478,13 @@ class MainActivity : Activity() {
                 val tile = row().apply {
                     pad(this, 12, 8, 12, 8)
                     background = TouchStyle.bg(this@MainActivity, TouchStyle.TILE, 17, TouchStyle.BORDER)
-                    setOnClickListener { runAction(item.third) }
+                    setOnClickListener {
+                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        runAction(item.third)
+                    }
                     isClickable = true
+                    isFocusable = true
+                    contentDescription = item.second
                 }
                 add(tile, text(item.first, 22f, color(), true), 0, dp(31))
                 tile.addView(text(item.second, 12f, TouchStyle.WHITE, true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -468,7 +499,7 @@ class MainActivity : Activity() {
         if (svc == null) { openAccessibility(); return }
         val next = !prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
         svc?.setBubbleVisible(next)
-        toast(if (next) "Floating control shown" else "Floating control hidden — restore it from Style")
+        toast(if (next) "Floating control shown" else "Floating control hidden — open KEYVIORA to restore it")
         render()
     }
 
@@ -476,28 +507,53 @@ class MainActivity : Activity() {
         val current = prefs.getString(key, fallback)
         val selected = TouchPrefs.actionKeys.indexOf(current).coerceAtLeast(0)
         AlertDialog.Builder(this)
-            .setTitle("Choose your shortcut")
+            .setTitle("Choose an action  •  اختر الوظيفة")
             .setSingleChoiceItems(TouchPrefs.actionLabels, selected) { dialog, index ->
-                prefs.edit().putString(key, TouchPrefs.actionKeys[index]).apply()
+                val chosen = TouchPrefs.actionKeys[index]
                 dialog.dismiss()
-                render()
+                if (chosen == "HIDE") {
+                    AlertDialog.Builder(this)
+                        .setTitle("Hide floating button?")
+                        .setMessage("Using this gesture will hide the button. Open KEYVIORA again to restore it. Choose this only if you have another way to open the app.")
+                        .setPositiveButton("Use Hide") { _, _ -> saveGesture(key, chosen) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    saveGesture(key, chosen)
+                }
             }
             .setNegativeButton("Cancel", null).show()
     }
 
+    private fun saveGesture(key: String, action: String) {
+        prefs.edit().putString(key, action).apply()
+        toast("Shortcut updated")
+        render()
+    }
+
     private fun setup() {
         add(page, text("Safety & setup", 30f, TouchStyle.WHITE, true), 12)
-        add(page, text("Everything you need to get started.", 13f, TouchStyle.MUTED), 4)
+        add(page, text("See what's ready, enable what's missing.", 13f, TouchStyle.MUTED), 4)
+        val ready = svc != null
+        val visible = prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)
+        val cameraReady = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val status = card()
+        add(status, text(if (ready && visible) "✓ KEYVIORA is ready" else "Finish setting up KEYVIORA", 18f, if (ready && visible) TouchStyle.MINT else TouchStyle.AMBER, true))
+        add(status, labelRow("Accessibility service", "Required for floating controls", if (ready) "READY" else "NEEDED"), 13)
+        add(status, labelRow("Floating button", "Restore it here whenever you hide it", if (!ready) "WAITING" else if (visible) "VISIBLE" else "HIDDEN"), 11)
+        add(status, labelRow("Flashlight access", "Optional: only required for Torch", if (cameraReady) "ALLOWED" else "OPTIONAL"), 11)
+        add(page, status, 22)
         val serviceCard = card()
         add(serviceCard, labelRow("Accessibility service", "Required for lock and gestures", if (svc != null) "ON" else "OFF"))
-        add(serviceCard, roundedButton(if (svc == null) "Enable accessibility" else "Open accessibility settings") { openAccessibility() }, 17)
+        add(serviceCard, roundedButton(if (svc == null) "Enable accessibility" else "Accessibility settings") { openAccessibility() }, 17)
+        if (ready) add(serviceCard, roundedButton(if (visible) "Hide floating button" else "Show floating button", false) { toggleBubble() }, 10)
         add(page, serviceCard, 26)
         section("GET STARTED")
         val guide = card()
         val steps = listOf(
             Triple("1", "Enable Accessibility", "Allow KEYVIORA Controls"),
             Triple("2", "Allow camera access", "Only needed for flashlight"),
-            Triple("3", "Enable screen wake", "Double tap to wake on HONOR")
+            Triple("3", "Set up screen wake", "Enable double tap or raise to wake on HONOR")
         )
         steps.forEachIndexed { index, entry ->
             val item = row().apply {
@@ -506,12 +562,14 @@ class MainActivity : Activity() {
                     when (index) {
                         0 -> openAccessibility()
                         1 -> requestCamera()
-                        else -> startActivity(Intent(Settings.ACTION_SETTINGS))
+                        else -> startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS))
                     }
                 }
                 isClickable = true
             }
-            add(item, text(entry.first, 16f, TouchStyle.WHITE, true).apply {
+            item.isFocusable = true
+            item.contentDescription = "${entry.second}. ${entry.third}"
+            add(item, text(if (index == 0 && ready || index == 1 && cameraReady) "✓" else entry.first, 16f, TouchStyle.WHITE, true).apply {
                 gravity = Gravity.CENTER
                 background = TouchStyle.oval(this@MainActivity, 0xFF254679.toInt())
             }, 0, dp(40), dp(40))
@@ -522,6 +580,7 @@ class MainActivity : Activity() {
             add(guide, item, if (index > 0) 8 else 0)
         }
         add(page, guide)
+        add(page, text("If your HONOR automatically closes the service, review battery optimization for KEYVIORA in Android App info.", 12f, TouchStyle.MUTED), 16)
         add(page, roundedButton("Open battery / app settings", false) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }, 18)
@@ -551,6 +610,7 @@ class MainActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100) {
+            render()
             toast(
                 if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
                     "Camera enabled. Tap Torch again to turn it on."
