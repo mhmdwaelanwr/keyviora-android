@@ -275,7 +275,7 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun runConfigured(key: String, defaultAction: String) {
         val saved = prefs().getString(key, defaultAction)
-        val action = saved?.takeIf { it in TouchPrefs.actionKeys } ?: defaultAction
+        val action = TouchActionCatalog.resolve(saved, defaultAction).key
         if (action != "NONE") bubbleView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         execute(action)
     }
@@ -441,18 +441,27 @@ class TouchAccessibilityService : AccessibilityService() {
         header.addView(dismiss, LinearLayout.LayoutParams(dp(48), dp(48)))
         panel.addView(header)
 
+        val favorites = TouchPrefs.favoriteKeys.mapIndexed { index, preference ->
+            val fallback = TouchPrefs.favoriteDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs().getString(preference, fallback), fallback)
+            Triple(action.glyph, action.shortLabel, action.key)
+        }
         val shortcuts = if (page == 0) listOf(
             Triple("⏣", "Lock", "LOCK"), Triple("＋", "Vol up", "VOLUME_UP"),
             Triple("−", "Vol down", "VOLUME_DOWN"), Triple("▣", "Screenshot", "SCREENSHOT"),
             Triple("☼", "Torch", "FLASHLIGHT"), Triple("⏻", "Power", "POWER")
-        ) else listOf(
-            Triple("◉", "Wi-Fi", "WIFI"), Triple("ᛒ", "Bluetooth", "BLUETOOTH"),
-            Triple("♧", "Notices", "NOTIFICATIONS"), Triple("☷", "Quick panel", "QUICK_SETTINGS"),
+        ) else favorites + listOf(
+            Triple("ᛒ", "Bluetooth", "BLUETOOTH"), Triple("☷", "Quick panel", "QUICK_SETTINGS"),
             Triple("◐", "Display", "DISPLAY"), Triple("♫", "Sound", "SOUND"),
-            Triple("☼", "Torch", "FLASHLIGHT"), Triple("⚙", "App", "APP"),
-            Triple("✕", "Hide", "HIDE")
+            Triple("☼", "Torch", "FLASHLIGHT"), Triple("✕", "Hide", "HIDE")
         )
-        for (r in shortcuts.chunked(3)) {
+        if (page == 1) {
+            panel.addView(menuText("PINNED SHORTCUTS", 11f, TouchStyle.MUTED, true))
+        }
+        for ((rowIndex, r) in shortcuts.chunked(3).withIndex()) {
+            if (page == 1 && rowIndex == 1) {
+                panel.addView(menuText("MORE ACTIONS", 11f, TouchStyle.MUTED, true))
+            }
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for ((symbol, label, action) in r) {
                 val cell = LinearLayout(this).apply {
