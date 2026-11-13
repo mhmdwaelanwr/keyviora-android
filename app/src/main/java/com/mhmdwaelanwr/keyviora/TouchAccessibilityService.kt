@@ -133,7 +133,12 @@ class TouchAccessibilityService : AccessibilityService() {
         val button = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF1B3355.toInt(), 0xFF345783.toInt())
             elevation = dp(8).toFloat()
-            contentDescription = "KEYVIORA floating button"
+            contentDescription = "KEYVIORA floating button. Double tap to activate the configured single-tap action."
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            // TalkBack invokes accessibility ACTION_CLICK rather than the raw touch gestures.
+            setOnClickListener { runConfigured(TouchPrefs.SINGLE, "MENU") }
         }
         val center = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF2F5591.toInt())
@@ -245,6 +250,7 @@ class TouchAccessibilityService : AccessibilityService() {
 
     /** Recovery action from Settings when the bubble was dragged to an inconvenient edge. */
     fun resetBubblePosition() {
+        if (bubbleParams == null) createBubble()
         val params = bubbleParams ?: return
         val metrics = resources.displayMetrics
         params.x = metrics.widthPixels - params.width - dp(12)
@@ -256,6 +262,9 @@ class TouchAccessibilityService : AccessibilityService() {
         }
         setBubbleVisible(true)
     }
+
+    /** Actual overlay state, not merely the last value saved in preferences. */
+    fun isBubbleVisible(): Boolean = bubbleView?.visibility == View.VISIBLE
 
     fun setBubbleVisible(visible: Boolean) {
         prefs().edit().putBoolean(TouchPrefs.BUBBLE_VISIBLE, visible).apply()
