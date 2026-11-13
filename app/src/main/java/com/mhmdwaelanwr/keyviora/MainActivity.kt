@@ -79,6 +79,11 @@ class MainActivity : Activity() {
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_LONG).show()
+    private fun hapticFeedback(view: View) {
+        if (prefs.getBoolean(TouchPrefs.HAPTIC_ENABLED, true)) {
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
     private fun text(label: String, size: Float = 15f, tint: Int = TouchStyle.WHITE, bold: Boolean = false): TextView =
         TextView(this).apply {
             this.text = label
@@ -194,7 +199,7 @@ class MainActivity : Activity() {
                 contentDescription = "${item.second} tab${if (selected) ", selected" else ""}"
                 setOnClickListener {
                     if (tab != i) {
-                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        hapticFeedback(it)
                         tab = i
                         render(resetScroll = true)
                     }
@@ -257,7 +262,7 @@ class MainActivity : Activity() {
         halo.isFocusable = true
         halo.isClickable = true
         halo.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            hapticFeedback(it)
             if (!active) openAccessibility()
             else if (!bubbleVisible) {
                 svc?.setBubbleVisible(true)
@@ -311,7 +316,7 @@ class MainActivity : Activity() {
                     isFocusable = true
                     contentDescription = a.second
                     setOnClickListener {
-                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        hapticFeedback(it)
                         runAction(a.third)
                     }
                 }
@@ -415,6 +420,20 @@ class MainActivity : Activity() {
         }
         snapRow.addView(snapSwitch, LinearLayout.LayoutParams(dp(58), dp(52)))
         add(controls, snapRow, 10)
+        val hapticRow = row().apply { minimumHeight = dp(60) }
+        hapticRow.addView(
+            labelRow("Touch feedback", "Vibrate lightly when tapping quick controls"),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        val hapticSwitch = Switch(this).apply {
+            isChecked = prefs.getBoolean(TouchPrefs.HAPTIC_ENABLED, true)
+            contentDescription = "Vibrate when using KEYVIORA controls"
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean(TouchPrefs.HAPTIC_ENABLED, checked).apply()
+            }
+        }
+        hapticRow.addView(hapticSwitch, LinearLayout.LayoutParams(dp(58), dp(52)))
+        add(controls, hapticRow, 5)
         add(controls, roundedButton(
             if (svc?.isBubbleVisible() ?: prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide floating control" else "Show floating control",
             false
@@ -510,7 +529,7 @@ class MainActivity : Activity() {
                 isFocusable = true
                 contentDescription = "${item.second}, current action: $label. Double tap to change"
                 setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    hapticFeedback(it)
                     selectAction(key, fallback)
                 }
             }
@@ -543,6 +562,41 @@ class MainActivity : Activity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }, 12)
+        section("QUICK CONTROL GRID")
+        add(page, text("Customize all six actions in the floating quick-control panel. Tap any slot to choose an action.", 13f, TouchStyle.MUTED), 2)
+        val quickCard = card()
+        TouchPrefs.quickKeys.forEachIndexed { index, key ->
+            val fallback = TouchPrefs.quickDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs.getString(key, fallback), fallback)
+            val item = row().apply {
+                minimumHeight = dp(62)
+                isClickable = true
+                isFocusable = true
+                contentDescription = "Quick control ${index + 1}: ${action.shortLabel}. Double tap to change"
+                setOnClickListener {
+                    hapticFeedback(it)
+                    selectAction(key, fallback)
+                }
+            }
+            add(item, text(action.glyph, 22f, color(), true).apply { gravity = Gravity.CENTER }, 0, dp(44))
+            val info = column()
+            add(info, text("Button ${index + 1}", 14f, TouchStyle.WHITE, true))
+            add(info, text(action.shortLabel, 12f, TouchStyle.MUTED), 4)
+            item.addView(info, LinearLayout.LayoutParams(0, -2, 1f))
+            add(item, text("›", 23f, TouchStyle.MUTED), 0, dp(24))
+            add(quickCard, item)
+            if (index < TouchPrefs.quickKeys.lastIndex) {
+                add(quickCard, View(this).apply { setBackgroundColor(TouchStyle.BORDER) }, 0, -1, dp(1))
+            }
+        }
+        add(page, quickCard, 12)
+        add(page, roundedButton("Restore quick-control grid", false) {
+            val editor = prefs.edit()
+            TouchPrefs.quickKeys.forEach { editor.remove(it) }
+            editor.apply()
+            render()
+            toast("Quick controls restored")
+        }, 11)
         section("PINNED SHORTCUTS")
         add(page, text("Choose the three buttons shown first in More tools. Tap a row to change it.", 13f, TouchStyle.MUTED), 2)
         val pinnedCard = card()
@@ -555,7 +609,7 @@ class MainActivity : Activity() {
                 isFocusable = true
                 contentDescription = "Pinned shortcut ${index + 1}: ${action.shortLabel}. Double tap to change"
                 setOnClickListener {
-                    it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    hapticFeedback(it)
                     selectAction(key, fallback)
                 }
             }
@@ -591,7 +645,7 @@ class MainActivity : Activity() {
                     pad(this, 12, 8, 12, 8)
                     background = TouchStyle.bg(this@MainActivity, TouchStyle.TILE, 17, TouchStyle.BORDER)
                     setOnClickListener {
-                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        hapticFeedback(it)
                         runAction(item.third)
                     }
                     isClickable = true
