@@ -27,6 +27,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.SeekBar
+import android.widget.ScrollView
 import android.widget.Toast
 import kotlin.math.roundToInt
 
@@ -127,7 +128,7 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun createBubble() {
         if (bubbleView != null) return
-        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88))
+        val diameter = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88))
         val button = FrameLayout(this).apply {
             background = TouchStyle.oval(this@TouchAccessibilityService, 0xFF1B3355.toInt(), 0xFF345783.toInt())
             elevation = dp(8).toFloat()
@@ -214,7 +215,7 @@ class TouchAccessibilityService : AccessibilityService() {
     fun refreshAppearance() {
         val view = bubbleView ?: return
         val params = bubbleParams ?: return
-        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(40, 88))
+        val size = dp(prefs().getInt(TouchPrefs.SIZE, 60).coerceIn(48, 88))
         params.width = size
         params.height = size
         clampBubblePosition(params)
@@ -406,10 +407,12 @@ class TouchAccessibilityService : AccessibilityService() {
         header.addView(title, LinearLayout.LayoutParams(0, dp(34), 1f))
         val dismiss = menuText("×", 29f).apply {
             gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
             contentDescription = "Close quick controls"
             setOnClickListener { closeMenu() }
         }
-        header.addView(dismiss, LinearLayout.LayoutParams(dp(35), dp(35)))
+        header.addView(dismiss, LinearLayout.LayoutParams(dp(48), dp(48)))
         panel.addView(header)
 
         val shortcuts = if (page == 0) listOf(
@@ -433,7 +436,10 @@ class TouchAccessibilityService : AccessibilityService() {
                     isClickable = true
                     isFocusable = true
                     contentDescription = label
-                    setOnClickListener { execute(action) }
+                    setOnClickListener {
+                        it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                        execute(action)
+                    }
                 }
                 val glyph = menuText(symbol, 25f, if (action == "LOCK") TouchStyle.WHITE else accent, true).apply {
                     gravity = Gravity.CENTER
@@ -498,22 +504,39 @@ class TouchAccessibilityService : AccessibilityService() {
             }
             panel.addView(nav, LinearLayout.LayoutParams(-1, dp(75)).apply { topMargin = dp(7) })
         }
-        val more = menuText(if (page == 0) "More tools   ›" else "‹   Back to quick controls", 12f, accent, true).apply {
+        val more = menuText(if (page == 0) "More tools   ›" else "‹   Back to quick controls", 14f, accent, true).apply {
             gravity = Gravity.CENTER
             isClickable = true
+            isFocusable = true
+            contentDescription = if (page == 0) "Show more tools" else "Back to quick controls"
             setOnClickListener { closeMenu(); showMenuPage(if (page == 0) 1 else 0) }
         }
-        panel.addView(more, LinearLayout.LayoutParams(-1, dp(35)).apply { topMargin = dp(7) })
+        panel.addView(more, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(7) })
 
+        // Keep the full menu reachable with larger fonts or limited landscape height.
+        val maxHeight = (resources.displayMetrics.heightPixels - dp(40)).coerceAtLeast(dp(160))
+        val scroll = object : ScrollView(this) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                super.onMeasure(
+                    widthMeasureSpec,
+                    View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST)
+                )
+            }
+        }.apply {
+            isVerticalScrollBarEnabled = false
+            isFillViewport = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            addView(panel)
+        }
         val screen = resources.displayMetrics.widthPixels
-        val width = minOf(screen - dp(24), dp(380))
+        val width = minOf((screen - dp(24)).coerceAtLeast(dp(160)), dp(380))
         val params = WindowManager.LayoutParams(
             width, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.CENTER }
-        try { windowManager.addView(panel, params); menuView = panel }
+        try { windowManager.addView(scroll, params); menuView = scroll }
         catch (_: Exception) { toast("تعذر فتح القائمة") }
     }
 
