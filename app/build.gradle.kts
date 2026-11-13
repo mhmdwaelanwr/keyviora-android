@@ -11,8 +11,8 @@ android {
         applicationId = "com.mhmdwaelanwr.keyviora"
         minSdk = 28
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6.0-beta"
+        versionCode = 7
+        versionName = "0.7.0-beta"
     }
 
     compileOptions {
