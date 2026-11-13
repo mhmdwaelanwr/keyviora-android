@@ -278,10 +278,16 @@ class TouchAccessibilityService : AccessibilityService() {
         if (!visible) closeMenu()
     }
 
+    private fun hapticFeedback(view: View?) {
+        if (prefs().getBoolean(TouchPrefs.HAPTIC_ENABLED, true)) {
+            view?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+
     private fun runConfigured(key: String, defaultAction: String) {
         val saved = prefs().getString(key, defaultAction)
         val action = TouchActionCatalog.resolve(saved, defaultAction).key
-        if (action != "NONE") bubbleView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        if (action != "NONE") hapticFeedback(bubbleView)
         execute(action)
     }
 
@@ -452,11 +458,12 @@ class TouchAccessibilityService : AccessibilityService() {
             val action = TouchActionCatalog.resolve(prefs().getString(preference, fallback), fallback)
             Triple(action.glyph, action.shortLabel, action.key)
         }
-        val shortcuts = if (page == 0) listOf(
-            Triple("⏣", "Lock", "LOCK"), Triple("＋", "Vol up", "VOLUME_UP"),
-            Triple("−", "Vol down", "VOLUME_DOWN"), Triple("▣", "Screenshot", "SCREENSHOT"),
-            Triple("☼", "Torch", "FLASHLIGHT"), Triple("⏻", "Power", "POWER")
-        ) else favorites + listOf(
+        val quickShortcuts = TouchPrefs.quickKeys.mapIndexed { index, preference ->
+            val fallback = TouchPrefs.quickDefaults[index]
+            val action = TouchActionCatalog.resolve(prefs().getString(preference, fallback), fallback)
+            Triple(action.glyph, action.shortLabel, action.key)
+        }
+        val shortcuts = if (page == 0) quickShortcuts else favorites + listOf(
             Triple("ᛒ", "Bluetooth", "BLUETOOTH"), Triple("☷", "Quick panel", "QUICK_SETTINGS"),
             Triple("◐", "Display", "DISPLAY"), Triple("♫", "Sound", "SOUND"),
             Triple("☼", "Torch", "FLASHLIGHT"), Triple("✕", "Hide", "HIDE")
@@ -478,7 +485,7 @@ class TouchAccessibilityService : AccessibilityService() {
                     isFocusable = true
                     contentDescription = label
                     setOnClickListener {
-                        it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                        hapticFeedback(it)
                         execute(action)
                     }
                 }
@@ -535,7 +542,7 @@ class TouchAccessibilityService : AccessibilityService() {
                     gravity = Gravity.CENTER
                     background = background(TouchStyle.SURFACE, 16)
                     isClickable = true
-                    setOnClickListener { execute(action) }
+                    setOnClickListener { hapticFeedback(it); execute(action) }
                 }
                 val iconText = menuText(icon, 25f, TouchStyle.MINT, true).apply { gravity = Gravity.CENTER }
                 cell.addView(iconText, LinearLayout.LayoutParams(-1, dp(32)))
