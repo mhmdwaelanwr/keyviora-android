@@ -6,20 +6,30 @@ KEYVIORA is a lightweight offline Android accessibility utility with a movable f
 
 [Editable Figma design](https://www.figma.com/design/eg7BsPgq2CYyORfeHb3BuG) · Android Studio source · No analytics or internet permission.
 
+## What's new in 0.5.0-beta (UX)
+- Guided first-run Accessibility setup with a clear activation button.
+- Accurate visible/hidden button state on Home and a recovery action.
+- Setup diagnostics for Accessibility, bubble visibility and optional camera access.
+- Gesture help, configurable gestures with safe Hide confirmation, and one-tap default restore.
+- Larger accessible targets, better screen reader descriptions, readable color selection and vibration feedback.
+- Scrollable floating menu for landscape, large text and compact displays.
+- Automated emulator screenshot artifact for visual QA.
+
 ## Features
 - Floating overlay, movable by dragging; adjustable appearance, size and opacity, with safe screen bounds and a reset button.
 - Media volume up/down and interactive volume slider.
 - Lock screen; system power dialog with an extra safety warning.
 - Screenshot, flashlight with camera-permission recovery and torch-state tracking, Home, Back, Recents, notifications and Quick Settings.
 - Tap, double tap and long press configurable independently.
-- Second overlay page for extra quick shortcuts.
+- Second overlay page for extra quick shortcuts, scrolling when vertical space is limited.
 - Settings stored locally, no account required.
 
 ## Build on GitHub Actions
 1. Open **Actions → KEYVIORA — Android CI** and select the latest run or **Run workflow**.
 2. A green run means CI completed JVM unit tests, `assembleDebug`, `lintDebug` **and an Android 15 emulator app-launch smoke test**; download the **KEYVIORA-debug-APK** artifact from the run.
 3. Extract ZIP to retrieve `app-debug.apk`, then install it on Android; enable **KEYVIORA Controls** under Accessibility services.
-4. If CI fails, open the job log. The APK should not be treated as validated until the build succeeds.
+4. The `KEYVIORA-emulator-home` artifact captures the startup screen for visual review when the emulator job succeeds.
+5. If CI fails, open the job log. The APK should not be treated as validated until the build succeeds.
 
 *The pipeline does not prove hardware behavior.* See [QA_CHECKLIST.md](QA_CHECKLIST.md) for on-device tests.
 
@@ -53,7 +63,7 @@ gradle :app:assembleDebug
 - `BubbleBounds.kt` and `BubbleBoundsTest.kt` — overlay bounds logic and regression tests.
 - `.github/workflows/android-build.yml` — CI: debug APK and lint report.
 
-See [Brand Design System](design/BRAND.md), [CI/static QA status](QA_REPORT.md) and [HONOR 50 test checklist](QA_CHECKLIST.md).
+See [Brand Design System](design/BRAND.md), [CI/QA status](QA_REPORT.md) and [HONOR device acceptance checklist](QA_CHECKLIST.md).
 
 ## License
 Copyright © 2026 Mohamed Anwar. **All rights reserved at this stage.** No open-source license has been granted yet. This is intentional until the publishing/distribution decision is made.
