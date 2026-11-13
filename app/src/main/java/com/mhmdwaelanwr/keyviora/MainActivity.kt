@@ -10,11 +10,13 @@ import android.graphics.Typeface
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
@@ -135,7 +137,21 @@ class MainActivity : Activity() {
 
     private fun render(resetScroll: Boolean = false) {
         val previousScrollY = if (resetScroll) 0 else currentScroller?.scrollY ?: 0
-        val shell = column().apply { setBackgroundColor(TouchStyle.BG) }
+        val shell = column().apply {
+            setBackgroundColor(TouchStyle.BG)
+            // Android 15 enforces edge-to-edge for apps targeting API 35.
+            // Keep bottom navigation and the first screen content outside system bars.
+            setOnApplyWindowInsetsListener { view, insets ->
+                val top = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    insets.getInsets(WindowInsets.Type.systemBars()).top
+                } else insets.systemWindowInsetTop
+                val bottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    insets.getInsets(WindowInsets.Type.systemBars()).bottom
+                } else insets.systemWindowInsetBottom
+                view.setPadding(0, top, 0, bottom)
+                insets
+            }
+        }
         val scroller = ScrollView(this).apply {
             isFillViewport = false
             isVerticalScrollBarEnabled = false
