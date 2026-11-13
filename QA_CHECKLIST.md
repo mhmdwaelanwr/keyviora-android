@@ -1,4 +1,4 @@
-# KEYVIORA 0.5.0-beta — HONOR / Android acceptance checklist
+# KEYVIORA 0.6.0-beta — HONOR / Android acceptance checklist
 
 ## Onboarding & recovery
 - [ ] On first install, Home clearly offers **Enable accessibility**, and tapping it opens system settings.
@@ -17,6 +17,15 @@
 - [ ] Assigning Hide warns how to recover the button.
 - [ ] Style preview reflects size/opacity/accent; button remains onscreen after resizing.
 - [ ] Dragging remains smooth; position persists after screen rotation and service reconnect.
+
+## New 0.6 ergonomics
+- [ ] Turn Snap to edge on; drag near the left and right sides and confirm it snaps within reachable bounds.
+- [ ] Turn Snap to edge off; confirm free placement persists after releasing the bubble.
+- [ ] Change Style options while scrolled halfway down; the app must not jump to the top.
+- [ ] Before enabling Accessibility, the Home volume shortcuts change media volume.
+- [ ] Assign No action to a gesture; tapping/holding that gesture must do nothing.
+- [ ] Reset all settings prompts for confirmation and restores a hidden floating bubble.
+- [ ] On Android 15, Home content and bottom navigation do not overlap status or gesture navigation bars.
 
 ## Function & safety
 - [ ] Lock screen works; HONOR double-tap-to-wake (if supported) wakes it again.
