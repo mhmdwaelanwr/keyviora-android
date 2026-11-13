@@ -190,8 +190,8 @@ class MainActivity : Activity() {
     private fun home() {
         val brand = row()
         add(brand, text("✦", 29f, color(), true), 0, dp(36))
-        add(brand, text("KEYVIORA", 16f, TouchStyle.WHITE, true), 0, dp(195))
-        brand.addView(View(this), LinearLayout.LayoutParams(0, dp(1), 1f))
+        brand.addView(text("KEYVIORA", 16f, TouchStyle.WHITE, true),
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val active = svc != null
         add(brand, chip(if (active) "● ACTIVE" else "● SET UP", if (active) 0xFF123F3A.toInt() else 0xFF463628.toInt(), if (active) TouchStyle.MINT else TouchStyle.AMBER), 0, -2)
         add(page, brand)
@@ -210,9 +210,38 @@ class MainActivity : Activity() {
         val middle = FrameLayout(this).apply { background = TouchStyle.oval(this@MainActivity, color()) }
         ring.addView(middle, FrameLayout.LayoutParams(dp(36), dp(36), Gravity.CENTER))
         halo.addView(ring, FrameLayout.LayoutParams(dp(60), dp(60), Gravity.CENTER))
-        halo.setOnClickListener { if (active) runAction("MENU") else openAccessibility() }
+        halo.contentDescription = if (active) "Open floating quick controls" else "Enable KEYVIORA accessibility"
+        halo.isFocusable = true
+        halo.isClickable = true
+        halo.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            if (active) runAction("MENU") else openAccessibility()
+        }
         hero.addView(halo, FrameLayout.LayoutParams(dp(90), dp(90), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(15) })
         add(page, hero, 25, -1, dp(145))
+        if (!active) {
+            val start = card()
+            add(start, text("Get your on-screen buttons working", 17f, TouchStyle.WHITE, true))
+            add(start, text("1. Enable KEYVIORA Controls in Accessibility.  2. Come back here.  3. Tap the floating button to open the controls.", 13f, TouchStyle.MUTED), 8)
+            add(start, roundedButton("Enable accessibility →") { openAccessibility() }, 14)
+            add(page, start, 14)
+        } else {
+            val ready = row().apply {
+                background = TouchStyle.bg(this@MainActivity, 0xFF123F3A.toInt(), 16)
+                pad(this, 14, 12, 14, 12)
+            }
+            ready.addView(text("✓  Controls ready", 13f, TouchStyle.MINT, true),
+                LinearLayout.LayoutParams(0, -2, 1f))
+            val action = roundedButton(
+                if (prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true)) "Hide button" else "Show button",
+                false
+            ) {
+                svc?.setBubbleVisible(!prefs.getBoolean(TouchPrefs.BUBBLE_VISIBLE, true))
+                render()
+            }
+            ready.addView(action, LinearLayout.LayoutParams(dp(120), dp(48)))
+            add(page, ready, 14)
+        }
 
         section("YOUR ESSENTIALS")
         val grid = column()
@@ -230,7 +259,10 @@ class MainActivity : Activity() {
                     isClickable = true
                     isFocusable = true
                     contentDescription = a.second
-                    setOnClickListener { runAction(a.third) }
+                    setOnClickListener {
+                        it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        runAction(a.third)
+                    }
                 }
                 val glyph = text(a.first, 23f, if (selected) TouchStyle.WHITE else color(), true).apply {
                     gravity = Gravity.CENTER
@@ -259,7 +291,7 @@ class MainActivity : Activity() {
                 render()
             }, 16)
         }
-        add(page, text("Tap the floating button to open your quick controls.", 12f, TouchStyle.MUTED), 16)
+        add(page, text("Tip: Drag the floating button to move it. Set single, double and long taps in Gestures.", 12f, TouchStyle.MUTED), 16)
     }
 
     private fun volumePercent(): Int {
@@ -312,7 +344,7 @@ class MainActivity : Activity() {
         val controls = card()
         add(controls, text("Floating button", 18f, TouchStyle.WHITE, true))
         add(controls, labelRow("Size", "Button diameter", "${prefs.getInt(TouchPrefs.SIZE,60)} dp"), 17)
-        slider(controls, TouchPrefs.SIZE, 40, 88, 60)
+        slider(controls, TouchPrefs.SIZE, 48, 88, 60)
         add(controls, labelRow("Opacity", "How visible the orb is", "${prefs.getInt(TouchPrefs.OPACITY,85)}%"), 12)
         slider(controls, TouchPrefs.OPACITY, 35, 100, 85)
         add(controls, roundedButton(
@@ -349,8 +381,9 @@ class MainActivity : Activity() {
         }
         add(page, colors, 5)
         val helpers = card()
-        add(helpers, labelRow("Reduce visual motion", "No extra transitions or animations"))
-        add(helpers, text("For easy reach, drag the orb near the middle of the screen's edge.", 13f, TouchStyle.MUTED), 12)
+        add(helpers, text("Comfort & accessibility", 16f, TouchStyle.WHITE, true))
+        add(helpers, text("The floating control uses no decorative animations. Keep size at 56 dp or larger for an easier touch target.", 13f, TouchStyle.MUTED), 9)
+        add(helpers, text("Tip: place the bubble near your thumb's reach. Use Reset bubble position if you lose it.", 13f, TouchStyle.MUTED), 12)
         add(page, helpers, 22)
     }
 
